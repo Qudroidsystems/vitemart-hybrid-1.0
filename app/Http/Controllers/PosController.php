@@ -88,6 +88,7 @@ class PosController extends Controller
                 'shiftCash' => route('pos.shifts.cash'),
                 'shiftClose' => url('/pos/shifts'),
                 'order' => url('/pos/order'),
+                'emailReceipt' => route('pos.receipt.email', '__ID__'),
                 'void' => url('/pos/void-order'),
                 'return' => url('/pos/return'),
                 'today' => route('pos.today-sales'),
@@ -147,8 +148,10 @@ class PosController extends Controller
         } else {
             $q->orderBy('title');
         }
+        $products = $q->limit(60)->get();
+        app(\App\Services\Catalogue\PriceListResolver::class)->prime($products->pluck('id')->all());
         $items = [];
-        foreach ($q->limit(60)->get() as $p) {
+        foreach ($products as $p) {
             if ($p->product_type === 'variable' && $p->variations->isNotEmpty()) {
                 foreach ($p->variations as $v) {
                     $items[] = $this->pos->formatItem($p, $v, null, $customer);
@@ -168,7 +171,7 @@ class PosController extends Controller
                 ->orWhere('last_name', 'like', "%$q%")->orWhere('phone_number', 'like', "%$q%")
                 ->orWhere('loyalty_card_number', $q)->orWhere('company_name', 'like', "%$q%")))
             ->orderBy('first_name')->limit(20)
-            ->get(['id', 'first_name', 'last_name', 'phone_number', 'company_name', 'customer_type', 'credit_limit', 'outstanding_balance']);
+            ->get(['id', 'first_name', 'last_name', 'phone_number', 'email', 'company_name', 'customer_type', 'credit_limit', 'outstanding_balance']);
 
         $points = CustomerPoint::whereIn('customer_id', $customers->pluck('id'))->pluck('points', 'customer_id');
 
@@ -176,6 +179,7 @@ class PosController extends Controller
             'id' => $c->id,
             'name' => trim($c->first_name . ' ' . $c->last_name),
             'phone' => $c->phone_number,
+            'email' => $c->email,
             'company' => $c->company_name,
             'type' => $c->customer_type,
             'points' => (int) ($points[$c->id] ?? 0),
@@ -285,6 +289,56 @@ class PosController extends Controller
         return view('pos.receipt', compact('order', 'payments', 'footer'));
     }
 
+    /** Email the receipt to the customer (sale-complete window and Receipts window). */
+    public function emailReceipt(Request $request, $orderId)
+    {
+        $data = $request->validate([
+            'email' => 'required|email|max:191',
+            'save_to_customer' => 'sometimes|boolean',
+        ], ['email.email' => 'Enter a valid email address.']);
+
+        $order = Order::where('id', $orderId)->with(['customer', 'items', 'user'])->firstOrFail();
+
+        $user = auth()->user();
+        if ($order->user_id != $user->id && !$user->can('Manage pos') && !$user->can('View sale') && !$user->can('Print receipt')) {
+            abort(403);
+        }
+
+        $payments = OrderPayment::where('order_id', $order->id)->get();
+        $email = strtolower(trim($data['email']));
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\PosReceiptMail($order, $payments));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('POS receipt email failed', ['order' => $order->id, 'error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'The email could not be sent. Please check the mail settings (MAIL_… in .env).',
+            ], 502);
+        }
+
+        // Remember the address on the customer when they didn't have one yet
+        $saved = false;
+        if ($request->boolean('save_to_customer') && $order->customer && !$order->customer->email) {
+            try {
+                $order->customer->forceFill(['email' => $email])->save();
+                $saved = true;
+            } catch (\Throwable $e) {
+                // e.g. another customer already uses this email – the receipt still went out
+            }
+        }
+
+        if (class_exists(\App\Services\AuditLogger::class)) {
+            \App\Services\AuditLogger::log('emailed', "Receipt {$order->id} emailed to {$email}", 'pos', $order);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Receipt sent to ' . $email . ($saved ? ' (saved to the customer)' : ''),
+            'saved_to_customer' => $saved,
+        ]);
+    }
+
     public function orderDetails($orderId)
     {
         $order = Order::with(['items', 'customer', 'user'])->findOrFail($orderId);
@@ -297,6 +351,7 @@ class PosController extends Controller
             'payment_status' => $order->payment_status,
             'cashier' => $order->user ? trim($order->user->first_name . ' ' . $order->user->last_name) : null,
             'customer' => $order->customer ? trim($order->customer->first_name . ' ' . $order->customer->last_name) : null,
+            'customer_email' => $order->customer?->email,
             'subtotal' => (float) ($order->subtotal ?? $order->items->sum('total_price')),
             'discount' => (float) $order->discount_amount,
             'total' => (float) $order->total_amount,

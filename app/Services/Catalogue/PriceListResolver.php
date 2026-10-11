@@ -76,6 +76,35 @@ class PriceListResolver
         return $this->memo[$productId] = $best;
     }
 
+    /**
+     * Load the price-list rows for many products in ONE query (search results, product grid),
+     * so pricing a page of 20–60 products doesn't run a query per product.
+     */
+    public function prime(array $productIds): void
+    {
+        if (!$this->ready()) {
+            return;
+        }
+        $ids = array_values(array_diff(array_unique(array_map('intval', $productIds)), array_keys($this->memo)));
+        if (!$ids) {
+            return;
+        }
+        foreach ($ids as $pid) {
+            $this->memo[$pid] = [];
+        }
+        $lists = $this->liveListIds();
+        if (!$lists) {
+            return;
+        }
+        $rank = array_flip($lists);
+        PriceListItem::with('priceList')
+            ->whereIn('price_list_id', $lists)->whereIn('product_id', $ids)->get()
+            ->sortBy(fn ($i) => $rank[$i->price_list_id] ?? 999)
+            ->each(function ($i) {
+                $this->memo[$i->product_id][$i->item_key] ??= $i;
+            });
+    }
+
     public function item(int $productId, ?int $variationId = null, ?int $packId = null): ?PriceListItem
     {
         return $this->itemsFor($productId)[PriceListItem::keyFor($productId, $variationId, $packId)] ?? null;

@@ -88,19 +88,19 @@ class PosService
             return ['exact' => true, 'items' => [$this->formatItem($exact, null, null, $customer)]];
         }
 
-        // 4. Text search
+        // 4. Text search – a few small indexed queries pick the ids, then only those load.
+        $ids = $this->searchProductIds($q, $limit);
+        if (!$ids) {
+            return ['exact' => false, 'items' => []];
+        }
+        app(\App\Services\Catalogue\PriceListResolver::class)->prime($ids);
+        $rank = array_flip($ids);
         $products = Product::with(['packs.unit', 'variations' => fn ($v) => $v->where('is_active', true)])
+            ->whereIn('id', $ids)
             ->where('is_active', true)
-            ->where(function ($w) use ($q) {
-                foreach (preg_split('/\s+/', $q) as $word) {
-                    $w->where(fn ($x) => $x->where('title', 'like', "%{$word}%")->orWhere('sku', 'like', "{$word}%"));
-                }
-            })
-            ->orWhereHas('variations', fn ($v) => $v->where('sku', 'like', "{$q}%")->where('is_active', true))
-            ->orderByRaw('CASE WHEN title LIKE ? THEN 0 ELSE 1 END', ["{$q}%"])
-            ->orderBy('title')
-            ->limit($limit)
-            ->get();
+            ->get()
+            ->sortBy(fn ($p) => $rank[$p->id] ?? PHP_INT_MAX)
+            ->values();
 
         $items = [];
         foreach ($products as $p) {
@@ -120,6 +120,137 @@ class PosService
         }
 
         return ['exact' => false, 'items' => $items];
+    }
+
+    /** Words MySQL/MariaDB full-text search ignores by default. */
+    protected const FT_STOPWORDS = ['a', 'about', 'an', 'are', 'as', 'at', 'be', 'by', 'com', 'de', 'en', 'for', 'from', 'how', 'i', 'in', 'is', 'it', 'la', 'of', 'on', 'or', 'that', 'the', 'this', 'to', 'was', 'what', 'when', 'where', 'who', 'will', 'with', 'und', 'www'];
+
+    /**
+     * Product ids for a typed search, best first. Built for large catalogues (100k+ products):
+     * every step is an indexed query with a LIMIT, never a scan-and-sort of the whole table.
+     *   1. name starts with the text      (products_title_idx)
+     *   2. SKU / variation SKU starts with the text
+     *   3. every word appears in the name  (products_search_ft full-text index; LIKE fallback)
+     */
+    public function searchProductIds(string $q, int $limit = 20): array
+    {
+        $q = trim(preg_replace('/\s+/', ' ', $q));
+        if ($q === '') {
+            return [];
+        }
+        $like = fn (string $s) => addcslashes($s, '%_\\');
+        $ids = [];
+        $add = function ($found) use (&$ids, $limit) {
+            foreach ($found as $id) {
+                $id = (int) $id;
+                if (!in_array($id, $ids, true)) {
+                    $ids[] = $id;
+                }
+                if (count($ids) >= $limit) {
+                    break;
+                }
+            }
+        };
+
+        // 1. Name starts with what was typed
+        $add(Product::where('is_active', true)->where('title', 'like', $like($q) . '%')
+            ->orderBy('title')->limit($limit)->pluck('id'));
+
+        // 2. SKU starts with it (products, then variations)
+        if (count($ids) < $limit && !str_contains($q, ' ')) {
+            $add(Product::where('is_active', true)->where('sku', 'like', $like($q) . '%')->limit($limit)->pluck('id'));
+            if (count($ids) < $limit) {
+                $add(ProductVariation::where('is_active', true)->where('sku', 'like', $like($q) . '%')->limit($limit)->pluck('product_id'));
+            }
+        }
+
+        // 3. Every word somewhere in the name
+        if (count($ids) < $limit) {
+            $words = array_slice(array_values(array_filter(explode(' ', mb_strtolower($q)), fn ($w) => $w !== '')), 0, 8);
+            $ftWords = [];
+            $likeWords = [];
+            foreach ($words as $w) {
+                $clean = preg_replace('/[^\p{L}\p{N}]+/u', '', $w);
+                if (mb_strlen($clean) >= 3 && !in_array($clean, self::FT_STOPWORDS, true)) {
+                    $ftWords[] = $clean;
+                } else {
+                    $likeWords[] = $w;
+                }
+            }
+
+            $found = null;
+            if ($ftWords && $this->fullTextReady()) {
+                $boolean = implode(' ', array_map(fn ($w) => '+' . $w . '*', $ftWords));
+                try {
+                    $found = Product::where('is_active', true)
+                        ->whereRaw('MATCH(title, sku) AGAINST (? IN BOOLEAN MODE)', [$boolean])
+                        ->when($likeWords, fn ($w) => $w->where(function ($x) use ($likeWords, $like) {
+                            foreach ($likeWords as $lw) {
+                                $x->where('title', 'like', '%' . $like($lw) . '%');
+                            }
+                        }))
+                        ->orderByRaw('MATCH(title, sku) AGAINST (? IN BOOLEAN MODE) DESC', [$boolean])
+                        ->orderByDesc('sold_quantity')
+                        ->limit($limit)
+                        ->pluck('id');
+                } catch (\Throwable $e) {
+                    Cache::forget('pos_search_fulltext');
+                    $found = null;
+                }
+            }
+
+            if ($found === null) {
+                // No full-text index (or only very short words): LIKE without ORDER BY, so the
+                // database can stop as soon as it has enough rows; sort the few results here.
+                $rows = Product::where('is_active', true)
+                    ->where(function ($w) use ($words, $like) {
+                        foreach ($words as $word) {
+                            $w->where(fn ($x) => $x->where('title', 'like', '%' . $like($word) . '%')->orWhere('sku', 'like', $like($word) . '%'));
+                        }
+                    })
+                    ->limit($limit * 3)
+                    ->get(['id', 'title']);
+                $lq = mb_strtolower($q);
+                $found = $rows->sortBy(fn ($r) => (str_starts_with(mb_strtolower($r->title), $lq) ? '0' : '1') . mb_strtolower($r->title))->pluck('id');
+            }
+            $add($found);
+        }
+
+        return $ids;
+    }
+
+    /** Is there a full-text index on products(title, sku)? Checked once an hour. */
+    protected function fullTextReady(): bool
+    {
+        return (bool) Cache::remember('pos_search_fulltext', 3600, function () {
+            try {
+                if (!in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+                    return false;
+                }
+                foreach (\Illuminate\Support\Facades\Schema::getIndexes('products') as $ix) {
+                    if (($ix['type'] ?? '') === 'fulltext' && $ix['columns'] === ['title', 'sku']) {
+                        return true;
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+            return false;
+        });
+    }
+
+    /** Packs whose unit is a weight or volume (kg, g, L, ml…) may be sold in fractions, e.g. 0.75 kg. */
+    public function isMeasuredPack(?ProductUnit $pack): bool
+    {
+        if (!$pack || !$pack->unit) {
+            return false;
+        }
+        foreach ([$pack->unit->name, $pack->unit->short_name] as $label) {
+            $t = rtrim(trim((string) $label), '.');
+            if ($t !== '' && preg_match('/^(kg|kgs|kilo|kilogram|kilogramme|g|gm|gms|gr|gram|gramme|lb|lbs|pound|l|lt|ltr|litre|liter|ml|millilitre|milliliter|cl|centilitre|centiliter)s?$/i', $t)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function formatItem(Product $product, ?ProductVariation $variation = null, ?ProductUnit $pack = null, ?Customer $customer = null): array
@@ -301,7 +432,7 @@ class PosService
                 if ($qty <= 0) {
                     continue;
                 }
-                if (!$product->is_weighted && abs($qty - round($qty)) > 0.0001 && (!$pack || $pack->quantity_per_unit >= 1)) {
+                if (!$product->is_weighted && abs($qty - round($qty)) > 0.0001 && (!$pack || $pack->quantity_per_unit >= 1) && !$this->isMeasuredPack($pack)) {
                     throw ValidationException::withMessages(["items.$i" => "{$product->title} is sold in whole units."]);
                 }
 

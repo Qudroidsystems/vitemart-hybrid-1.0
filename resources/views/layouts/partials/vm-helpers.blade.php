@@ -20,8 +20,9 @@ window.VM = window.VM || {};
     };
 
     /** fetch wrapper: JSON in/out, CSRF, throws {status, data} on error */
-    VM.api = async function (url, {method = 'GET', body = null, form = null, headers = {}} = {}) {
+    VM.api = async function (url, {method = 'GET', body = null, form = null, headers = {}, signal = null} = {}) {
         const opts = {method, headers: Object.assign({'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf}, headers), credentials: 'same-origin'};
+        if (signal) opts.signal = signal;
         if (form) {
             opts.body = form;
         } else if (body !== null) {

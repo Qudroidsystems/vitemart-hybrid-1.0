@@ -239,6 +239,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/save-order', [PosController::class, 'savePosOrder'])->name('order.save');
         Route::post('/authorize', [PosController::class, 'authorizeOverride'])->name('authorize');
         Route::get('/receipt/{orderId}', [PosController::class, 'generateReceipt'])->name('receipt');
+        Route::post('/receipt/{orderId}/email', [PosController::class, 'emailReceipt'])->middleware('throttle:20,1')->name('receipt.email');
         Route::get('/print/{orderId}', [PosController::class, 'generateReceipt'])->name('print');
         Route::get('/barcode/{barcode}', [PosController::class, 'getProductByBarcode'])->name('barcode');
         Route::get('/today-sales', [PosController::class, 'getTodaySales'])->name('today-sales');

@@ -132,6 +132,12 @@
         .qm-quick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
         .qm-quick button { border: 1px solid var(--pos-line); background: #f8fafc; border-radius: 8px; padding: 9px 0; font-weight: 600; color: var(--pos-ink); }
         .qm-quick button:hover { border-color: var(--pos-accent); }
+        .qm-entry { display: inline-flex; background: #f3f5f9; border-radius: 10px; padding: 3px; gap: 2px; }
+        .qm-entry button { border: 0; background: transparent; border-radius: 8px; padding: 6px 14px; font-weight: 700; font-size: 13px; color: var(--pos-muted); }
+        .qm-entry button.active { background: #fff; color: var(--pos-accent); box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+        .qm-unit-tag { flex: none; align-self: center; padding: 0 14px; font-weight: 700; font-size: 18px; color: var(--pos-muted); }
+        .qm-conv { font-size: 13px; color: var(--pos-accent); font-weight: 600; min-height: 18px; margin: -2px 0 8px; }
+        .qm-sum { font-size: 12.5px; color: var(--pos-muted); }
         .qm-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--pos-line); padding-top: 10px; }
         .qm-total strong { font-size: 26px; font-weight: 800; }
         .qm-note { font-size: 12px; margin-top: 4px; }
@@ -400,9 +406,22 @@
                 <div class="text-muted" id="dRef"></div>
                 <div class="display-6 fw-bold mt-3" id="dChange"></div>
                 <div class="text-muted">change</div>
+                <div class="done-email mt-4 text-start" id="dEmailBox">
+                    <label class="form-label fs-sm fw-semibold mb-1" for="dEmail"><i class="bi bi-envelope me-1"></i>Email the receipt to the customer</label>
+                    <div class="input-group">
+                        <input type="email" class="form-control" id="dEmail" placeholder="customer@example.com" autocomplete="off">
+                        <button class="btn btn-outline-primary" id="dEmailBtn" type="button"><span class="spinner-border spinner-border-sm d-none me-1"></span><i class="bi bi-send me-1"></i>Send</button>
+                    </div>
+                    <div class="form-check mt-1 d-none" id="dSaveWrap">
+                        <input class="form-check-input" type="checkbox" id="dSave" checked>
+                        <label class="form-check-label fs-sm" for="dSave">Save this email to <span id="dSaveName"></span></label>
+                    </div>
+                    <div class="fs-sm mt-1" id="dEmailMsg"></div>
+                </div>
             </div>
             <div class="modal-footer justify-content-center">
                 <button class="btn btn-light" id="dPrint"><i class="bi bi-printer me-1"></i>Print receipt <kbd>P</kbd></button>
+                <button class="btn btn-light" id="dEmailFocus"><i class="bi bi-envelope me-1"></i>Email <kbd>E</kbd></button>
                 <button class="btn btn-primary px-4" id="dNew">New sale <kbd>Enter</kbd></button>
             </div>
         </div>
@@ -476,19 +495,24 @@
                     <span class="qm-label">Sell as</span>
                     <div class="qm-packs" id="qmPacks"></div>
                 </div>
-                <label class="qm-label" for="qmQty">Quantity <span id="qmUnit"></span></label>
+                <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-1">
+                    <label class="qm-label mb-0" for="qmQty" id="qmLabel">Quantity</label>
+                    <div class="qm-entry" id="qmEntry" role="group" aria-label="Enter by"></div>
+                </div>
                 <div class="qm-qty mb-2">
                     <button type="button" id="qmDec" aria-label="Less">&minus;</button>
                     <input type="text" id="qmQty" inputmode="decimal" autocomplete="off">
+                    <span class="qm-unit-tag" id="qmUnit"></span>
                     <button type="button" id="qmInc" aria-label="More">+</button>
                 </div>
+                <div class="qm-conv" id="qmConv"></div>
                 <div class="qm-quick mb-3" id="qmQuick"></div>
-                <div class="qm-total"><span class="text-muted" id="qmEach"></span><strong id="qmTotal"></strong></div>
+                <div class="qm-total"><span class="qm-sum" id="qmEach"></span><strong id="qmTotal"></strong></div>
                 <div class="qm-note text-success" id="qmInCart"></div>
                 <div class="qm-note" id="qmWarn" style="color:var(--pos-warn)"></div>
             </div>
             <div class="modal-footer">
-                <span class="text-muted me-auto" style="font-size:12px"><kbd>Enter</kbd> add &middot; <kbd>Esc</kbd> cancel</span>
+                <span class="text-muted me-auto" style="font-size:12px"><kbd>Enter</kbd> add &middot; <kbd>Tab</kbd> unit &middot; <kbd>Esc</kbd> cancel</span>
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn qm-add" id="qmAdd"><i class="bi bi-cart-plus me-1"></i>Add to cart</button>
             </div>
@@ -725,12 +749,86 @@
     const qm = {item: null, packId: null, initial: 1, pendingScan: null, lastKeyAt: 0, burst: null};
 
     function pickItem(item, qty = null) {
-        if (!askQty || item.scale || qty != null) { addItem(item, qty); scan.focus(); return; }
+        // Items sold by weight/volume always ask, so the cashier enters how much is being bought.
+        const measured = item.is_weighted || (item.packs || []).some(p => measureOf(p));
+        if ((!askQty && !measured) || item.scale || qty != null) { addItem(item, qty); scan.focus(); return; }
         openQtyDialog(item);
     }
     const qmPacks = () => (qm.item.packs || []);
     const qmPack = () => qmPacks().find(p => String(p.id) === String(qm.packId)) || qmPacks()[0] || {price: qm.item.price, qty: 1, name: qm.item.base_unit || 'unit'};
-    const qmStep = () => (qm.item && qm.item.is_weighted ? 0.1 : 1);
+
+    // ---- units: a kg pack can be keyed in kg or g, a litre pack in L or ml, or by money amount
+    const MEASURES = [
+        {re: /^(kg|kgs|kilo|kilogram|kilogramme)s?$/i, sym: 'kg', fam: 'w', f: 1},
+        {re: /^(g|gm|gms|gr|gram|gramme)s?$/i, sym: 'g', fam: 'w', f: 0.001},
+        {re: /^(lb|lbs|pound)s?$/i, sym: 'lb', fam: 'w', f: 0.45359237},
+        {re: /^(l|lt|ltr|litre|liter)s?$/i, sym: 'L', fam: 'v', f: 1},
+        {re: /^(ml|millilitre|milliliter)s?$/i, sym: 'ml', fam: 'v', f: 0.001},
+        {re: /^(cl|centilitre|centiliter)s?$/i, sym: 'cl', fam: 'v', f: 0.01},
+    ];
+    const CUR = {symbol: String(VM.currencyLabel || CFG.currency || '').trim(), code: VM.currencyCode || ''};
+    const SUBUNIT = {w: {sym: 'g', f: 0.001}, v: {sym: 'ml', f: 0.001}};
+    function measureOf(pack) {
+        if (!pack) return null;
+        for (const raw of [pack.name, pack.short]) {
+            const t = String(raw || '').trim().replace(/\.$/, '');
+            const m = t && MEASURES.find(x => x.re.test(t));
+            if (m) return m;
+        }
+        return null;
+    }
+    const baseSym = it => { const b = (it.packs || []).find(p => p.is_base) || (it.packs || [])[0]; return (b && measureOf(b)?.sym) || it.base_unit || ''; };
+    const unitSym = pk => measureOf(pk)?.sym || pk.short || pk.name || 'unit';
+    const fmt3 = n => VM.qty(Math.round(n * 1000) / 1000);
+    // Entry modes for the current pack: [{id, label, sym, toPack(v), fromPack(q), step, quick, decimals}]
+    function qmModes() {
+        const pk = qmPack(), m = measureOf(pk), price = Number(pk.price) || 0;
+        const fractional = !!(m || qm.item.is_weighted);
+        const modes = [{id: 'pack', label: m ? m.sym : (pk.short || pk.name || 'Qty'), sym: unitSym(pk), title: m ? (m.fam === 'w' ? 'Weight' : 'Volume') : 'Quantity',
+            toPack: v => v, fromPack: q => q, step: fractional ? (m && m.sym === 'g' || m && m.sym === 'ml' ? 50 : 0.1) : 1,
+            quick: fractional ? (m && (m.sym === 'g' || m.sym === 'ml') ? [100, 250, 500, 750, 1000, 1500] : [0.25, 0.5, 1, 1.5, 2, 5]) : [1, 2, 3, 5, 10, 12]}];
+        if (m) {
+            const sub = SUBUNIT[m.fam];
+            if (m.f === 1) {
+                const r = m.f / sub.f; // e.g. 1000 g per kg
+                modes.push({id: 'sub', label: sub.sym, sym: sub.sym, title: m.fam === 'w' ? 'Weight' : 'Volume',
+                    toPack: v => v / r, fromPack: q => q * r, step: 50, quick: [100, 250, 500, 750, 1000, 1500].map(x => x * (r / 1000))});
+            }
+        }
+        if (fractional && price > 0) {
+            const nice = [200, 500, 1000, 2000, 5000, 10000].map(x => x * Math.max(1, Math.pow(10, Math.floor(Math.log10(price)) - 3)));
+            modes.push({id: 'amount', label: (CUR.symbol || '').trim() + ' Amount', sym: (CUR.symbol || '').trim(), title: 'Amount', prefix: true,
+                toPack: v => v / price, fromPack: q => round2(q * price), step: nice[0] / 2, quick: nice});
+        }
+        return modes;
+    }
+    const qmMode = () => qmModes().find(x => x.id === qm.entry) || qmModes()[0];
+    const qmStep = () => qmMode().step;
+    // Quantity in pack units for what's in the box (3 decimals, as stored on the sale)
+    function qmPackQty() {
+        const v = Number(String(qmInput.value).trim().replace(/,/g, ''));
+        if (!(v > 0) || !isFinite(v)) return 0;
+        const q = qmMode().toPack(v);
+        const pk = qmPack(), fractional = !!(measureOf(pk) || qm.item.is_weighted);
+        if (!fractional) return q;
+        // By amount: round down so the customer is never charged more than the amount asked for
+        return qm.entry === 'amount' ? Math.floor(q * 1000 + 1e-6) / 1000 : Math.round(q * 1000) / 1000;
+    }
+    function renderQtyEntry() {
+        const modes = qmModes();
+        if (!modes.some(x => x.id === qm.entry)) qm.entry = modes[0].id;
+        $('#qmEntry').style.display = modes.length > 1 ? '' : 'none';
+        $('#qmEntry').innerHTML = modes.map(x => `<button type="button" data-entry="${x.id}" class="${x.id === qm.entry ? 'active' : ''}">${VM.esc(x.label)}</button>`).join('');
+        const md = qmMode();
+        $('#qmQuick').innerHTML = md.quick.map(v => `<button type="button" data-v="${v}">${md.prefix ? VM.esc(md.sym) : ''}${VM.qty(v)}${md.prefix ? '' : (md.id === 'pack' && !measureOf(qmPack()) ? '' : ' ' + VM.esc(md.sym))}</button>`).join('');
+    }
+    function switchEntry(id) {
+        const q = qmPackQty();
+        qm.entry = id;
+        renderQtyEntry();
+        if (q > 0) { const v = qmMode().fromPack(q); qmInput.value = qm.entry === 'amount' ? round2(v) : fmt3(v); }
+        updateQtyDialog(); qmInput.focus(); qmInput.select();
+    }
 
     function openQtyDialog(item, qty = null) {
         qm.item = item;
@@ -739,40 +837,47 @@
         qm.pendingScan = null;
         qm.burst = null;
         $('#qmTitle').textContent = item.title + (item.variant ? ' – ' + item.variant : '');
-        $('#qmMeta').textContent = [item.sku, item.track_stock ? VM.qty(item.stock) + ' ' + (item.base_unit || '') + ' in stock' : 'Stock not tracked'].filter(Boolean).join(' · ');
+        $('#qmMeta').textContent = [item.sku, item.track_stock ? VM.qty(item.stock) + ' ' + baseSym(item) + ' in stock' : 'Stock not tracked'].filter(Boolean).join(' · ');
         $('#qmPh').innerHTML = item.thumbnail ? `<img src="${item.thumbnail}" alt="">` : '<i class="bi bi-box"></i>';
-        const quick = item.is_weighted ? [0.25, 0.5, 1, 1.5, 2, 5] : [1, 2, 3, 5, 10, 12];
-        $('#qmQuick').innerHTML = quick.map(v => `<button type="button" data-v="${v}">${v}</button>`).join('');
+        qm.entry = 'pack';
         qmInput.value = qm.initial;
         renderQtyPacks();
+        renderQtyEntry();
         updateQtyDialog();
         bootstrap.Modal.getOrCreateInstance(qtyModalEl).show();
     }
     function renderQtyPacks() {
         const packs = qmPacks();
-        $('#qmPackWrap').style.display = packs.length > 1 ? '' : 'none';
+        $('#qmPackWrap').style.display = packs.length ? '' : 'none';
         $('#qmPacks').innerHTML = packs.map(p => `<button type="button" data-pack="${p.id}" class="${String(p.id) === String(qm.packId) ? 'active' : ''}">${VM.esc(p.name)}${p.qty != 1 ? ' ×' + VM.qty(p.qty) : ''}<small>${M(p.price)}</small></button>`).join('');
     }
     function updateQtyDialog() {
         if (!qm.item) return;
-        const it = qm.item, pk = qmPack();
-        const qty = Number(String(qmInput.value).trim());
+        const it = qm.item, pk = qmPack(), md = qmMode(), sym = unitSym(pk);
+        const qty = qmPackQty();
         const ok = qty > 0 && isFinite(qty);
-        $('#qmUnit').textContent = '(' + (pk.name || 'unit') + ')';
-        $('#qmEach').textContent = M(pk.price) + ' per ' + (pk.name || 'unit');
-        const qmTotalText = M(ok ? round2(Number(pk.price) * qty) : 0);
+        const total = ok ? round2(Number(pk.price) * qty) : 0;
+        $('#qmLabel').textContent = md.title + (md.id === 'amount' ? ' to sell' : '') + ' (' + (md.id === 'amount' ? (CUR.code || md.sym) : md.sym) + ')';
+        $('#qmUnit').textContent = md.sym;
+        let conv = '';
+        if (ok && md.id === 'sub') conv = `= ${fmt3(qty)} ${VM.esc(sym)}`;
+        else if (ok && md.id === 'amount') conv = `= ${fmt3(qty)} ${VM.esc(sym)}` + (Math.abs(total - Number(String(qmInput.value).replace(/,/g, ''))) >= 0.01 ? ` <span class="text-muted fw-normal">(charged ${M(total)})</span>` : '');
+        else if (ok && measureOf(pk) && SUBUNIT[measureOf(pk).fam] && measureOf(pk).f > 0.001 && qty < 1) conv = `= ${VM.qty(Math.round(qty * measureOf(pk).f / SUBUNIT[measureOf(pk).fam].f))} ${SUBUNIT[measureOf(pk).fam].sym}`;
+        $('#qmConv').innerHTML = conv;
+        $('#qmEach').innerHTML = ok ? `${fmt3(qty)} ${VM.esc(sym)} × ${M(pk.price)}/${VM.esc(sym)}` : `${M(pk.price)} per ${VM.esc(pk.name || sym)}`;
+        const qmTotalText = M(total);
         if ($('#qmTotal').textContent !== qmTotalText) { $('#qmTotal').textContent = qmTotalText; if (qtyModalEl.classList.contains('show')) restart($('#qmTotal'), 'bump'); }
         const existing = state.lines.find(l => l.item.key === it.key && String(l.pack_id) === String(qm.packId) && !l.overridden && !l.item.is_weighted);
         $('#qmInCart').innerHTML = existing ? `<i class="bi bi-cart-check me-1"></i>${VM.qty(existing.qty)} already in the cart – this will be added to it` : '';
         const inCartBase = state.lines.filter(l => l.item.key === it.key).reduce((a, l) => a + Number(l.qty) * Number(packOf(l).qty || 1), 0);
         const need = inCartBase + (ok ? qty * Number(pk.qty || 1) : 0);
-        $('#qmWarn').innerHTML = it.track_stock && need > Number(it.stock) ? `<i class="bi bi-exclamation-triangle me-1"></i>Only ${VM.qty(it.stock)} ${VM.esc(it.base_unit || '')} in stock` : '';
+        $('#qmWarn').innerHTML = it.track_stock && need > Number(it.stock) ? `<i class="bi bi-exclamation-triangle me-1"></i>Only ${VM.qty(it.stock)} ${VM.esc(baseSym(it))} in stock` : '';
         $('#qmAdd').disabled = !ok;
     }
     function confirmQtyDialog() {
         if (!qm.item) return;
         const raw = String(qmInput.value).trim();
-        const isQty = v => /^\d{1,6}(\.\d{1,3})?$/.test(String(v).trim()) && Number(v) > 0;
+        const isQty = v => /^\d{1,7}(\.\d{1,3})?$/.test(String(v).trim().replace(/,/g, '')) && Number(String(v).replace(/,/g, '')) > 0;
         // A barcode scanned while the box is open lands in this field. Scanners type much
         // faster than people, so the fast "burst" of keys is the new code; whatever was in
         // the box before it is this item's quantity.
@@ -784,14 +889,14 @@
                 if (raw.startsWith(prefix) && raw.endsWith(suffix) && raw.length > prefix.length + suffix.length) {
                     code = raw.slice(prefix.length, raw.length - suffix.length).trim();
                 }
-                if (isQty(b.value)) qty = Number(b.value);
+                if (isQty(b.value)) { const keep = qmInput.value; qmInput.value = b.value; qty = qmPackQty() || qty; qmInput.value = keep; }
             }
             addItem(qm.item, qty, qm.packId);
             qm.pendingScan = code;
             bootstrap.Modal.getInstance(qtyModalEl).hide();
             return;
         }
-        const qty = Number(raw);
+        const qty = qmPackQty();
         if (!(qty > 0)) { beep(false); restart($('.qm-qty'), 'err-shake-box'); setTimeout(() => $('.qm-qty').classList.remove('err-shake-box'), 600); qmInput.focus(); qmInput.select(); return; }
         pickFrom = $('#qmAdd').getBoundingClientRect();
         addItem(qm.item, qty, qm.packId);
@@ -799,14 +904,19 @@
     }
     $('#qmPacks').addEventListener('click', e => {
         const b = e.target.closest('[data-pack]'); if (!b) return;
-        qm.packId = (qmPacks().find(p => String(p.id) === b.dataset.pack) || {}).id ?? b.dataset.pack; renderQtyPacks(); updateQtyDialog(); qmInput.focus(); qmInput.select();
+        const prevEntry = qm.entry;
+        qm.packId = (qmPacks().find(p => String(p.id) === b.dataset.pack) || {}).id ?? b.dataset.pack; renderQtyPacks(); renderQtyEntry();
+        if (qm.entry !== prevEntry || prevEntry === 'sub') qmInput.value = qm.entry === 'amount' ? qmInput.value : 1;
+        updateQtyDialog(); qmInput.focus(); qmInput.select();
     });
+    $('#qmEntry').addEventListener('click', e => { const b = e.target.closest('[data-entry]'); if (b) switchEntry(b.dataset.entry); });
     $('#qmQuick').addEventListener('click', e => {
         const v = e.target.closest('[data-v]')?.dataset.v; if (!v) return;
         qmInput.value = v; updateQtyDialog(); qmInput.focus(); qmInput.select();
     });
-    $('#qmInc').addEventListener('click', () => { qmInput.value = round2((Number(qmInput.value) || 0) + qmStep()); updateQtyDialog(); qmInput.focus(); });
-    $('#qmDec').addEventListener('click', () => { qmInput.value = Math.max(qmStep(), round2((Number(qmInput.value) || 0) - qmStep())); updateQtyDialog(); qmInput.focus(); });
+    const qmNum = () => Number(String(qmInput.value).replace(/,/g, '')) || 0;
+    $('#qmInc').addEventListener('click', () => { qmInput.value = fmt3(qmNum() + qmStep()); updateQtyDialog(); qmInput.focus(); });
+    $('#qmDec').addEventListener('click', () => { qmInput.value = fmt3(Math.max(qmStep(), qmNum() - qmStep())); updateQtyDialog(); qmInput.focus(); });
     qmInput.addEventListener('input', updateQtyDialog);
     qmInput.addEventListener('keydown', e => {
         if (e.key.length === 1 && e.key !== '+' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
@@ -816,6 +926,11 @@
             qm.lastKeyAt = now;
         }
         if (e.key === 'Enter') { e.preventDefault(); confirmQtyDialog(); }
+        else if (e.key === 'Tab' && qmModes().length > 1) {
+            e.preventDefault();
+            const ids = qmModes().map(x => x.id), i = ids.indexOf(qm.entry);
+            switchEntry(ids[(i + (e.shiftKey ? ids.length - 1 : 1)) % ids.length]);
+        }
         else if (e.key === '+' || e.key === 'ArrowUp') { e.preventDefault(); $('#qmInc').click(); }
         else if (e.key === '-' || e.key === 'ArrowDown') { e.preventDefault(); $('#qmDec').click(); }
     });
@@ -900,15 +1015,34 @@
         pickItem(it, q);
     });
 
+    // Fast search: recent answers are cached for a minute and a newer keystroke cancels the older request,
+    // so the till never waits on (or flickers with) out-of-date results.
+    const searchCache = new Map();
+    let searchCtrl = null;
+    const cacheKey = q => q.toLowerCase() + '|' + (state.customer?.id || '');
+    async function lookup(q, live = false) {
+        const key = cacheKey(q), hit = searchCache.get(key);
+        if (hit && Date.now() - hit.t < 60000) return hit.r;
+        if (searchCtrl) searchCtrl.abort();
+        const ctrl = new AbortController();
+        if (live) searchCtrl = ctrl;
+        try {
+            const r = await VM.api(R.lookup + '?q=' + encodeURIComponent(q) + customerParam(), {signal: ctrl.signal});
+            searchCache.set(key, {t: Date.now(), r});
+            if (searchCache.size > 200) searchCache.delete(searchCache.keys().next().value);
+            return r;
+        } finally { if (searchCtrl === ctrl) searchCtrl = null; }
+    }
+    const isAbort = e => e && (e.name === 'AbortError' || e.code === 20);
     const liveSearch = VM.debounce(async () => {
         const q = scan.value.trim().replace(/^\d+(\.\d+)?\*/, '');
         if (q.length < 2 || /^\d{8,}$/.test(q)) { if (!q) hideResults(); return; }
         searching(true);
         try {
-            const r = await VM.api(R.lookup + '?q=' + encodeURIComponent(q) + customerParam());
+            const r = await lookup(q, true);
             if (scan.value.trim().replace(/^\d+(\.\d+)?\*/, '') === q) showResults(r.items);
-        } catch (e) {} finally { searching(false); }
-    }, 220);
+        } catch (e) {} finally { if (!searchCtrl) searching(false); }
+    }, 150);
     scan.addEventListener('input', liveSearch);
 
     async function submitScan() {
@@ -926,7 +1060,7 @@
         }
         searching(true);
         try {
-            const r = await VM.api(R.lookup + '?q=' + encodeURIComponent(raw) + customerParam());
+            const r = await lookup(raw);
             if (r.exact && r.items.length === 1) {
                 const it = r.items[0];
                 const q = it.scale ? it.qty : qtyMultiplier;
@@ -940,7 +1074,7 @@
                 scan.select();
                 VM.toast('No product found for "' + raw + '"', 'error');
             }
-        } catch (e) { beep(false); VM.error(e); }
+        } catch (e) { if (!isAbort(e)) { beep(false); VM.error(e); } }
         finally { searching(false); }
         qtyMultiplier = null;
     }
@@ -1104,7 +1238,7 @@
             const list = await VM.api(R.customers + '?q=' + encodeURIComponent($('#custSearch').value));
             $('#custList').innerHTML = list.map((c, i) => `<button class="list-group-item list-group-item-action" data-i="${i}">
                 <div class="d-flex justify-content-between"><strong>${VM.esc(c.name)}</strong>${c.type === 'wholesale' ? '<span class="badge bg-info">Wholesale</span>' : ''}</div>
-                <div class="fs-sm text-muted">${VM.esc(c.phone || '')}${c.points ? ' · ' + c.points + ' pts' : ''}${c.owing ? ' · owes ' + M(c.owing) : ''}</div></button>`).join('') || '<div class="text-muted p-2">No customers found</div>';
+                <div class="fs-sm text-muted">${VM.esc(c.phone || '')}${c.email ? ' · ' + VM.esc(c.email) : ''}${c.points ? ' · ' + c.points + ' pts' : ''}${c.owing ? ' · owes ' + M(c.owing) : ''}</div></button>`).join('') || '<div class="text-muted p-2">No customers found</div>';
             $$('#custList [data-i]').forEach(b => b.addEventListener('click', () => { setCustomer(list[b.dataset.i]); bootstrap.Modal.getInstance('#custModal').hide(); }));
         } catch (e) {}
     }, 250);
@@ -1230,8 +1364,11 @@
             const res = await VM.api(R.checkout, {method: 'POST', body});
             lastOrder = res;
             clientRef = null;
+            const saleCustomer = state.customer;
             payModal.hide();
             resetSale();
+            searchCache.clear();
+            prepareEmail(saleCustomer);
             $('#dRef').textContent = 'Receipt ' + res.order_id + ' · ' + M(res.total);
             $('#dChange').textContent = M(0);
             setTimeout(() => countUp($('#dChange'), 0, Number(res.change) || 0, 650), 250);
@@ -1272,6 +1409,48 @@
     }
     $('#dPrint').addEventListener('click', () => lastOrder && printReceipt(lastOrder.order_id));
     $('#dNew').addEventListener('click', () => { bootstrap.Modal.getInstance('#doneModal').hide(); });
+
+    // ------------------------------------------------------------------ email receipt
+    const emailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    let emailCustomer = null;
+    function prepareEmail(cust) {
+        emailCustomer = cust || null;
+        $('#dEmail').value = cust?.email || '';
+        $('#dEmail').classList.remove('is-invalid', 'is-valid');
+        $('#dEmailMsg').innerHTML = '';
+        $('#dEmailBtn').disabled = false;
+        const canSave = !!cust && !cust.email;
+        $('#dSaveWrap').classList.toggle('d-none', !canSave);
+        if (canSave) $('#dSaveName').textContent = cust.name || 'this customer';
+    }
+    async function sendReceiptEmail(orderId, email, save = false) {
+        return VM.api(R.emailReceipt.replace('__ID__', encodeURIComponent(orderId)), {method: 'POST', body: {email, save_to_customer: save ? 1 : 0}});
+    }
+    async function emailFromDone() {
+        if (!lastOrder) return;
+        const inp = $('#dEmail'), btn = $('#dEmailBtn'), msg = $('#dEmailMsg');
+        const email = inp.value.trim();
+        if (!emailOk(email)) { inp.classList.add('is-invalid'); msg.innerHTML = '<span class="text-danger">Enter a valid email address.</span>'; inp.focus(); return; }
+        inp.classList.remove('is-invalid');
+        btn.disabled = true; $('.spinner-border', btn).classList.remove('d-none');
+        msg.innerHTML = '<span class="text-muted">Sending…</span>';
+        try {
+            const save = !$('#dSaveWrap').classList.contains('d-none') && $('#dSave').checked;
+            const r = await sendReceiptEmail(lastOrder.order_id, email, save);
+            inp.classList.add('is-valid');
+            msg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>' + VM.esc(r.message || 'Receipt sent') + '</span>';
+            if (save && emailCustomer) emailCustomer.email = email;
+            $('#dSaveWrap').classList.add('d-none');
+        } catch (e) {
+            msg.innerHTML = '<span class="text-danger">' + VM.esc(e.data?.errors?.email?.[0] || e.message) + '</span>';
+        } finally { btn.disabled = false; $('.spinner-border', btn).classList.add('d-none'); }
+    }
+    $('#dEmailBtn').addEventListener('click', emailFromDone);
+    $('#dEmail').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); emailFromDone(); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); $('#dEmail').blur(); }
+    });
+    $('#dEmailFocus').addEventListener('click', () => $('#dEmail').focus());
     $('#doneModal').addEventListener('hidden.bs.modal', () => scan.focus());
 
     // ------------------------------------------------------------------ recall / void / refund
@@ -1310,13 +1489,28 @@
                 <div class="fs-sm text-muted mb-3">Paid by ${o.payments.map(p => VM.esc(p.method) + ' ' + M(p.amount)).join(', ') || '—'}</div>
                 <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-light" id="rPrint"><i class="bi bi-printer me-1"></i>Reprint</button>
+                    <button class="btn btn-light" id="rEmail"><i class="bi bi-envelope me-1"></i>Email</button>
                     ${cancelled ? '' : `<button class="btn btn-outline-warning" id="rReturn"><i class="bi bi-arrow-return-left me-1"></i>Refund selected items</button>
                     <button class="btn btn-outline-danger ms-auto" id="rVoid"><i class="bi bi-x-octagon me-1"></i>Void whole sale</button>`}
                 </div>`;
             $('#rPrint').addEventListener('click', () => printReceipt(o.id));
+            $('#rEmail').addEventListener('click', () => emailFromRecall(o));
             $('#rVoid')?.addEventListener('click', () => voidOrder(o));
             $('#rReturn')?.addEventListener('click', () => returnItems(o));
         } catch (e) { $('#recallOrder').innerHTML = `<div class="alert alert-warning">${VM.esc(e.message)}</div>`; }
+    }
+    async function emailFromRecall(o) {
+        const r = await Swal.fire({
+            title: 'Email receipt ' + o.id, input: 'email', inputValue: o.customer_email || '', inputPlaceholder: 'customer@example.com',
+            showCancelButton: true, confirmButtonText: '<i class="bi bi-send me-1"></i>Send', showLoaderOnConfirm: true,
+            validationMessage: 'Enter a valid email address',
+            preConfirm: async email => {
+                try { return await sendReceiptEmail(o.id, email, false); }
+                catch (err) { Swal.showValidationMessage(err.data?.errors?.email?.[0] || err.message); return false; }
+            },
+            allowOutsideClick: () => !Swal.isLoading(),
+        });
+        if (r.isConfirmed && r.value) VM.toast(r.value.message || 'Receipt sent');
     }
     async function voidOrder(o, token = null) {
         const reason = token ? voidOrder.reason : await VM.prompt('Void sale ' + o.id, 'Reason (required)');
@@ -1461,6 +1655,8 @@
             return;
         }
         if (document.querySelector('#doneModal.show')) {
+            if (document.activeElement && document.activeElement.closest('#dEmailBox')) return;
+            if (e.key.toLowerCase() === 'e') { e.preventDefault(); $('#dEmail').focus(); return; }
             if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); bootstrap.Modal.getInstance('#doneModal').hide(); }
             if (e.key.toLowerCase() === 'p') { e.preventDefault(); lastOrder && printReceipt(lastOrder.order_id); }
             return;
