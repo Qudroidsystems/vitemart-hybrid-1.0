@@ -103,6 +103,33 @@
         .change { font-size: 22px; font-weight: 800; color: var(--pos-accent); }
         .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
         .keypad button { height: 52px; font-size: 20px; font-weight: 600; border: 1px solid var(--pos-line); background: #fff; border-radius: 10px; }
+        /* quantity dialog */
+        #qtyModal .modal-content { border: 0; border-radius: 16px; overflow: hidden; }
+        .qm-head { display: flex; gap: 12px; align-items: center; }
+        .qm-ph { width: 56px; height: 56px; flex: none; border-radius: 10px; background: #f3f5f9; display: flex; align-items: center; justify-content: center; color: #b4bccb; font-size: 24px; overflow: hidden; }
+        .qm-ph img { width: 100%; height: 100%; object-fit: cover; }
+        .qm-title { font-weight: 700; font-size: 17px; line-height: 1.25; }
+        .qm-meta { font-size: 12px; color: var(--pos-muted); }
+        .qm-label { font-size: 12px; color: var(--pos-muted); margin-bottom: 4px; display: block; }
+        .qm-packs { display: flex; flex-wrap: wrap; gap: 6px; }
+        .qm-packs button { border: 2px solid var(--pos-line); background: #fff; border-radius: 10px; padding: 6px 12px; font-weight: 600; text-align: left; line-height: 1.2; color: var(--pos-ink); }
+        .qm-packs button small { display: block; font-weight: 500; font-size: 11px; color: var(--pos-muted); }
+        .qm-packs button.active { border-color: var(--pos-accent); background: var(--pos-accent-soft); color: var(--pos-accent); }
+        .qm-qty { display: flex; border: 2px solid var(--pos-line); border-radius: 12px; overflow: hidden; }
+        .qm-qty:focus-within { border-color: var(--pos-accent); box-shadow: 0 0 0 .2rem rgba(15,118,110,.15); }
+        .qm-qty button { width: 64px; flex: none; border: 0; background: #f3f5f9; font-size: 26px; color: var(--pos-ink); }
+        .qm-qty button:active { background: var(--pos-accent-soft); }
+        .qm-qty input { flex: 1; min-width: 0; border: 0; outline: 0; text-align: center; font-size: 34px; font-weight: 800; height: 68px; color: var(--pos-ink); }
+        .qm-quick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+        .qm-quick button { border: 1px solid var(--pos-line); background: #f8fafc; border-radius: 8px; padding: 9px 0; font-weight: 600; color: var(--pos-ink); }
+        .qm-quick button:hover { border-color: var(--pos-accent); }
+        .qm-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--pos-line); padding-top: 10px; }
+        .qm-total strong { font-size: 26px; font-weight: 800; }
+        .qm-note { font-size: 12px; margin-top: 4px; }
+        .qm-add { background: var(--pos-accent); color: var(--pos-accent-ink); border: 0; font-weight: 700; padding-left: 22px; padding-right: 22px; }
+        .qm-add:hover, .qm-add:focus { background: #0b5f58; color: #fff; }
+        .qm-add:disabled { background: var(--pos-accent); opacity: .45; }
+
         .offline { display: none; }
         .vm-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
         body.is-offline .offline { display: inline-block; }
@@ -150,6 +177,7 @@
                 <li><a class="dropdown-item" href="#" id="mCashOut"><i class="bi bi-box-arrow-up me-2"></i>Cash out / payout</a></li>
                 <li><a class="dropdown-item" href="#" id="mCloseShift"><i class="bi bi-lock me-2"></i>Close shift (Z-report)</a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" id="mAskQty"><i class="bi bi-check2-square me-2" id="mAskQtyIcon"></i>Ask quantity before adding</a></li>
                 <li><a class="dropdown-item" href="#" id="mShortcuts"><i class="bi bi-keyboard me-2"></i>Keyboard shortcuts</a></li>
                 @can('dashboard')<li><a class="dropdown-item" href="{{ $config['routes']['dashboard'] }}"><i class="bi bi-speedometer2 me-2"></i>Back to dashboard</a></li>@endcan
                 <li>
@@ -340,6 +368,43 @@
     </div>
 </div>
 
+{{-- ===================== QUANTITY MODAL ===================== --}}
+<div class="modal fade" id="qtyModal" tabindex="-1" aria-labelledby="qmTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body p-4">
+                <div class="qm-head mb-3">
+                    <div class="qm-ph" id="qmPh"></div>
+                    <div class="flex-grow-1" style="min-width:0">
+                        <div class="qm-title" id="qmTitle"></div>
+                        <div class="qm-meta" id="qmMeta"></div>
+                    </div>
+                    <button type="button" class="btn-close align-self-start" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div id="qmPackWrap" class="mb-3">
+                    <span class="qm-label">Sell as</span>
+                    <div class="qm-packs" id="qmPacks"></div>
+                </div>
+                <label class="qm-label" for="qmQty">Quantity <span id="qmUnit"></span></label>
+                <div class="qm-qty mb-2">
+                    <button type="button" id="qmDec" aria-label="Less">&minus;</button>
+                    <input type="text" id="qmQty" inputmode="decimal" autocomplete="off">
+                    <button type="button" id="qmInc" aria-label="More">+</button>
+                </div>
+                <div class="qm-quick mb-3" id="qmQuick"></div>
+                <div class="qm-total"><span class="text-muted" id="qmEach"></span><strong id="qmTotal"></strong></div>
+                <div class="qm-note text-success" id="qmInCart"></div>
+                <div class="qm-note" id="qmWarn" style="color:var(--pos-warn)"></div>
+            </div>
+            <div class="modal-footer">
+                <span class="text-muted me-auto" style="font-size:12px"><kbd>Enter</kbd> add &middot; <kbd>Esc</kbd> cancel</span>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn qm-add" id="qmAdd"><i class="bi bi-cart-plus me-1"></i>Add to cart</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <iframe id="printFrame" style="position:absolute;width:0;height:0;border:0" title="receipt"></iframe>
 
 <script src="{{ asset('theme/layouts/assets/libs/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
@@ -495,6 +560,128 @@
         $('#cart').scrollTop = 0;
     }
 
+    // ------------------------------------------------------------------ quantity dialog
+    // Every product picked from the grid, the search list or a barcode scan opens this
+    // dialog first so the cashier can set quantity / pack before it goes into the cart.
+    // Skipped when the quantity is already known (3* prefix, weighed scale labels) or
+    // when "Ask quantity before adding" is switched off in the menu.
+    let askQty = true;
+    try { askQty = localStorage.getItem('pos_ask_qty') !== '0'; } catch (e) {}
+    const qtyModalEl = $('#qtyModal');
+    const qmInput = $('#qmQty');
+    const qm = {item: null, packId: null, initial: 1, pendingScan: null, lastKeyAt: 0, burst: null};
+
+    function pickItem(item, qty = null) {
+        if (!askQty || item.scale || qty != null) { addItem(item, qty); scan.focus(); return; }
+        openQtyDialog(item);
+    }
+    const qmPacks = () => (qm.item.packs || []);
+    const qmPack = () => qmPacks().find(p => String(p.id) === String(qm.packId)) || qmPacks()[0] || {price: qm.item.price, qty: 1, name: qm.item.base_unit || 'unit'};
+    const qmStep = () => (qm.item && qm.item.is_weighted ? 0.1 : 1);
+
+    function openQtyDialog(item, qty = null) {
+        qm.item = item;
+        qm.packId = item.pack_id ?? (item.packs && item.packs[0] ? item.packs[0].id : null);
+        qm.initial = Number(qty ?? item.qty ?? 1) || 1;
+        qm.pendingScan = null;
+        qm.burst = null;
+        $('#qmTitle').textContent = item.title + (item.variant ? ' – ' + item.variant : '');
+        $('#qmMeta').textContent = [item.sku, item.track_stock ? VM.qty(item.stock) + ' ' + (item.base_unit || '') + ' in stock' : 'Stock not tracked'].filter(Boolean).join(' · ');
+        $('#qmPh').innerHTML = item.thumbnail ? `<img src="${item.thumbnail}" alt="">` : '<i class="bi bi-box"></i>';
+        const quick = item.is_weighted ? [0.25, 0.5, 1, 1.5, 2, 5] : [1, 2, 3, 5, 10, 12];
+        $('#qmQuick').innerHTML = quick.map(v => `<button type="button" data-v="${v}">${v}</button>`).join('');
+        qmInput.value = qm.initial;
+        renderQtyPacks();
+        updateQtyDialog();
+        bootstrap.Modal.getOrCreateInstance(qtyModalEl).show();
+    }
+    function renderQtyPacks() {
+        const packs = qmPacks();
+        $('#qmPackWrap').style.display = packs.length > 1 ? '' : 'none';
+        $('#qmPacks').innerHTML = packs.map(p => `<button type="button" data-pack="${p.id}" class="${String(p.id) === String(qm.packId) ? 'active' : ''}">${VM.esc(p.name)}${p.qty != 1 ? ' ×' + VM.qty(p.qty) : ''}<small>${M(p.price)}</small></button>`).join('');
+    }
+    function updateQtyDialog() {
+        if (!qm.item) return;
+        const it = qm.item, pk = qmPack();
+        const qty = Number(String(qmInput.value).trim());
+        const ok = qty > 0 && isFinite(qty);
+        $('#qmUnit').textContent = '(' + (pk.name || 'unit') + ')';
+        $('#qmEach').textContent = M(pk.price) + ' per ' + (pk.name || 'unit');
+        $('#qmTotal').textContent = M(ok ? round2(Number(pk.price) * qty) : 0);
+        const existing = state.lines.find(l => l.item.key === it.key && String(l.pack_id) === String(qm.packId) && !l.overridden && !l.item.is_weighted);
+        $('#qmInCart').innerHTML = existing ? `<i class="bi bi-cart-check me-1"></i>${VM.qty(existing.qty)} already in the cart – this will be added to it` : '';
+        const inCartBase = state.lines.filter(l => l.item.key === it.key).reduce((a, l) => a + Number(l.qty) * Number(packOf(l).qty || 1), 0);
+        const need = inCartBase + (ok ? qty * Number(pk.qty || 1) : 0);
+        $('#qmWarn').innerHTML = it.track_stock && need > Number(it.stock) ? `<i class="bi bi-exclamation-triangle me-1"></i>Only ${VM.qty(it.stock)} ${VM.esc(it.base_unit || '')} in stock` : '';
+        $('#qmAdd').disabled = !ok;
+    }
+    function confirmQtyDialog() {
+        if (!qm.item) return;
+        const raw = String(qmInput.value).trim();
+        const isQty = v => /^\d{1,6}(\.\d{1,3})?$/.test(String(v).trim()) && Number(v) > 0;
+        // A barcode scanned while the box is open lands in this field. Scanners type much
+        // faster than people, so the fast "burst" of keys is the new code; whatever was in
+        // the box before it is this item's quantity.
+        if (raw.length >= 4 && !isQty(raw)) {
+            let code = raw, qty = qm.initial;
+            const b = qm.burst;
+            if (b) {
+                const prefix = b.value.slice(0, b.start), suffix = b.value.slice(b.end);
+                if (raw.startsWith(prefix) && raw.endsWith(suffix) && raw.length > prefix.length + suffix.length) {
+                    code = raw.slice(prefix.length, raw.length - suffix.length).trim();
+                }
+                if (isQty(b.value)) qty = Number(b.value);
+            }
+            addItem(qm.item, qty, qm.packId);
+            qm.pendingScan = code;
+            bootstrap.Modal.getInstance(qtyModalEl).hide();
+            return;
+        }
+        const qty = Number(raw);
+        if (!(qty > 0)) { beep(false); qmInput.focus(); qmInput.select(); return; }
+        addItem(qm.item, qty, qm.packId);
+        bootstrap.Modal.getInstance(qtyModalEl).hide();
+    }
+    $('#qmPacks').addEventListener('click', e => {
+        const b = e.target.closest('[data-pack]'); if (!b) return;
+        qm.packId = (qmPacks().find(p => String(p.id) === b.dataset.pack) || {}).id ?? b.dataset.pack; renderQtyPacks(); updateQtyDialog(); qmInput.focus(); qmInput.select();
+    });
+    $('#qmQuick').addEventListener('click', e => {
+        const v = e.target.closest('[data-v]')?.dataset.v; if (!v) return;
+        qmInput.value = v; updateQtyDialog(); qmInput.focus(); qmInput.select();
+    });
+    $('#qmInc').addEventListener('click', () => { qmInput.value = round2((Number(qmInput.value) || 0) + qmStep()); updateQtyDialog(); qmInput.focus(); });
+    $('#qmDec').addEventListener('click', () => { qmInput.value = Math.max(qmStep(), round2((Number(qmInput.value) || 0) - qmStep())); updateQtyDialog(); qmInput.focus(); });
+    qmInput.addEventListener('input', updateQtyDialog);
+    qmInput.addEventListener('keydown', e => {
+        if (e.key.length === 1 && e.key !== '+' && e.key !== '-' && !e.ctrlKey && !e.metaKey) {
+            const now = performance.now();
+            // Remember the box as it was when a new run of keystrokes began.
+            if (now - qm.lastKeyAt > 50) qm.burst = {value: qmInput.value, start: qmInput.selectionStart ?? qmInput.value.length, end: qmInput.selectionEnd ?? qmInput.value.length};
+            qm.lastKeyAt = now;
+        }
+        if (e.key === 'Enter') { e.preventDefault(); confirmQtyDialog(); }
+        else if (e.key === '+' || e.key === 'ArrowUp') { e.preventDefault(); $('#qmInc').click(); }
+        else if (e.key === '-' || e.key === 'ArrowDown') { e.preventDefault(); $('#qmDec').click(); }
+    });
+    $('#qmAdd').addEventListener('click', confirmQtyDialog);
+    qtyModalEl.addEventListener('shown.bs.modal', () => { qmInput.focus(); qmInput.select(); });
+    qtyModalEl.addEventListener('hidden.bs.modal', () => {
+        qm.item = null;
+        scan.focus();
+        if (qm.pendingScan) { scan.value = qm.pendingScan; qm.pendingScan = null; submitScan(); }
+    });
+
+    function paintAskQty() { $('#mAskQtyIcon').className = 'bi ' + (askQty ? 'bi-check2-square' : 'bi-square') + ' me-2'; }
+    $('#mAskQty').addEventListener('click', e => {
+        e.preventDefault();
+        askQty = !askQty;
+        try { localStorage.setItem('pos_ask_qty', askQty ? '1' : '0'); } catch (err) {}
+        paintAskQty();
+        VM.toast(askQty ? 'Quantity box will open before adding items' : 'Items will go straight into the cart', 'success');
+    });
+    paintAskQty();
+
     // ------------------------------------------------------------------ scan / search
     const scan = $('#scan');
     const results = $('#results');
@@ -516,8 +703,9 @@
     results.addEventListener('mousedown', e => {
         const r = e.target.closest('.r'); if (!r) return;
         e.preventDefault();
-        addItem(resultItems[r.dataset.i], qtyMultiplier);
-        qtyMultiplier = null; scan.value = ''; hideResults(); scan.focus();
+        const it = resultItems[r.dataset.i], q = qtyMultiplier;
+        qtyMultiplier = null; scan.value = ''; hideResults();
+        pickItem(it, q);
     });
 
     const liveSearch = VM.debounce(async () => {
@@ -539,14 +727,16 @@
         const m = raw.match(/^(\d+(?:\.\d+)?)\*(.*)$/);
         if (m) { qtyMultiplier = Number(m[1]); raw = m[2].trim(); if (!raw) { scan.value = m[1] + '*'; return; } }
         if (resultItems.length && results.style.display === 'block' && !/^\d{8,}$/.test(raw)) {
-            addItem(resultItems[activeIdx], qtyMultiplier); qtyMultiplier = null; scan.value = ''; hideResults(); return;
+            const it = resultItems[activeIdx], q = qtyMultiplier;
+            qtyMultiplier = null; scan.value = ''; hideResults(); pickItem(it, q); return;
         }
         try {
             const r = await VM.api(R.lookup + '?q=' + encodeURIComponent(raw) + customerParam());
             if (r.exact && r.items.length === 1) {
                 const it = r.items[0];
-                addItem(it, it.scale ? it.qty : qtyMultiplier);
-                scan.value = ''; hideResults();
+                const q = it.scale ? it.qty : qtyMultiplier;
+                qtyMultiplier = null; scan.value = ''; hideResults();
+                pickItem(it, q);
             } else if (r.items.length) {
                 showResults(r.items);
             } else {
@@ -578,7 +768,7 @@
                 <div class="p">${M(it.price)}</div>
                 <div class="s">${it.track_stock ? VM.qty(it.stock) + ' ' + VM.esc(it.base_unit) : '&nbsp;'}</div>
             </button>`).join('') || '<div class="text-muted p-3">No products in this category.</div>';
-            $$('#grid .tile').forEach(t => t.addEventListener('click', () => { addItem(r.items[t.dataset.i], qtyMultiplier); qtyMultiplier = null; scan.focus(); }));
+            $$('#grid .tile').forEach(t => t.addEventListener('click', () => { const q = qtyMultiplier; qtyMultiplier = null; pickItem(r.items[t.dataset.i], q); }));
         } catch (e) { $('#grid').innerHTML = '<div class="text-danger p-3">Could not load products.</div>'; }
     }
     $$('#cats button').forEach(b => b.addEventListener('click', () => {
@@ -1042,7 +1232,8 @@
         e.preventDefault();
         Swal.fire({title: 'Keyboard shortcuts', html: `<table class="table table-sm text-start">
             <tr><td><kbd>F2</kbd></td><td>Scan / search box</td></tr>
-            <tr><td><kbd>3*</kbd> then scan</td><td>Add 3 of the scanned item</td></tr>
+            <tr><td><kbd>Enter</kbd> in quantity box</td><td>Add to cart (<kbd>Esc</kbd> cancels, <kbd>+</kbd>/<kbd>-</kbd> change it)</td></tr>
+            <tr><td><kbd>3*</kbd> then scan</td><td>Add 3 of the scanned item straight away</td></tr>
             <tr><td><kbd>Enter</kbd> on empty box</td><td>Go to payment</td></tr>
             <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Change quantity of the selected line</td></tr>
             <tr><td><kbd>Del</kbd></td><td>Remove the selected line</td></tr>
