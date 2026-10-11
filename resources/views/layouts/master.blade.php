@@ -82,7 +82,7 @@
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
-    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
+    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('report-emails.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
@@ -554,6 +554,13 @@
                                         </li>
                                     </ul>
                                 </div>
+                            </li>
+                        @endcan
+                        @can('Manage report emails')
+                            <li class="nav-item">
+                                <a class="nav-link menu-link {{ request()->routeIs('report-emails.*') ? 'active' : '' }}" href="{{ route('report-emails.index') }}">
+                                    <i class="ph-envelope-simple"></i> <span>Sales Report Emails</span>
+                                </a>
                             </li>
                         @endcan
                         @can('Manage system configuration')
@@ -1361,7 +1368,7 @@
     </div>
 
 
-      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
+      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('report-emails.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
             @include('layouts.pages-assets.js.common-js')
       @endif
 

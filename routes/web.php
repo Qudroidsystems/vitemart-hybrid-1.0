@@ -166,6 +166,20 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/users/{user}/pin', [SecurityController::class, 'setPin'])->name('set-pin');
     });
 
+    // Sales report emails: scheduled end-of-day / weekly / monthly reports and one-off reports
+    Route::prefix('report-emails')->name('report-emails.')->controller(\App\Http\Controllers\ReportEmailController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/preview', 'preview')->name('preview');
+        Route::get('/download', 'download')->name('download');
+        Route::post('/send-once', 'sendOnce')->middleware('throttle:10,1')->name('send-once');
+        Route::put('/{schedule}', 'update')->name('update');
+        Route::delete('/{schedule}', 'destroy')->name('destroy');
+        Route::post('/{schedule}/toggle', 'toggle')->name('toggle');
+        Route::post('/{schedule}/send', 'sendNow')->middleware('throttle:10,1')->name('send');
+        Route::get('/{schedule}/preview', 'previewSchedule')->name('preview-schedule');
+    });
+
     // System configuration: server address, head office, database, email, app, maintenance
     Route::prefix('system-config')->name('system-config.')->controller(\App\Http\Controllers\SystemConfigController::class)->group(function () {
         Route::get('/', 'index')->name('index');
