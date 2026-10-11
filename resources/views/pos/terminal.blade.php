@@ -714,13 +714,16 @@
     }
 
     // ------------------------------------------------------------------ add items
+    const packKey = id => (id === null || id === undefined || id === '' ? '' : String(id));
+    const sameLine = (l, item, packId) => l.item.key === item.key && packKey(l.pack_id) === packKey(packId) && !l.overridden;
     function addItem(item, qty = null, packId = null) {
         qty = qty ?? (item.qty || 1);
         packId = packId ?? item.pack_id ?? (item.packs && item.packs[0] ? item.packs[0].id : null);
-        // Same item + same pack + not weighted → increase quantity
-        const existing = !item.scale && state.lines.find(l => l.item.key === item.key && String(l.pack_id) === String(packId) && !l.overridden && !l.item.is_weighted);
+        // Same item + same pack → one line, quantities (or weights) added together.
+        // Scale-label barcodes stay separate: each label is its own weighed bag.
+        const existing = !item.scale && state.lines.find(l => !l.item.scale && sameLine(l, item, packId));
         if (existing) {
-            existing.qty = Number(existing.qty) + Number(qty);
+            existing.qty = Math.round((Number(existing.qty) + Number(qty)) * 1000) / 1000;
             state.selected = existing.uid;
             flash = {uid: existing.uid, kind: 'bump'};
             // move to top
@@ -867,8 +870,8 @@
         $('#qmEach').innerHTML = ok ? `${fmt3(qty)} ${VM.esc(sym)} × ${M(pk.price)}/${VM.esc(sym)}` : `${M(pk.price)} per ${VM.esc(pk.name || sym)}`;
         const qmTotalText = M(total);
         if ($('#qmTotal').textContent !== qmTotalText) { $('#qmTotal').textContent = qmTotalText; if (qtyModalEl.classList.contains('show')) restart($('#qmTotal'), 'bump'); }
-        const existing = state.lines.find(l => l.item.key === it.key && String(l.pack_id) === String(qm.packId) && !l.overridden && !l.item.is_weighted);
-        $('#qmInCart').innerHTML = existing ? `<i class="bi bi-cart-check me-1"></i>${VM.qty(existing.qty)} already in the cart – this will be added to it` : '';
+        const existing = state.lines.find(l => !l.item.scale && sameLine(l, it, qm.packId));
+        $('#qmInCart').innerHTML = existing ? `<i class="bi bi-cart-check me-1"></i>${fmt3(existing.qty)} ${VM.esc(unitSym(pk))} already in the cart – this will be added to it` : '';
         const inCartBase = state.lines.filter(l => l.item.key === it.key).reduce((a, l) => a + Number(l.qty) * Number(packOf(l).qty || 1), 0);
         const need = inCartBase + (ok ? qty * Number(pk.qty || 1) : 0);
         $('#qmWarn').innerHTML = it.track_stock && need > Number(it.stock) ? `<i class="bi bi-exclamation-triangle me-1"></i>Only ${VM.qty(it.stock)} ${VM.esc(baseSym(it))} in stock` : '';
