@@ -75,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
 
     // Roles & Permissions
+    Route::post('roles/bulk-remove-users', [RoleController::class, 'bulkRemoveUsers'])->name('roles.bulkremoveusers');
     Route::resource('roles', RoleController::class);
     Route::resource('permissions', PermissionController::class);
 
