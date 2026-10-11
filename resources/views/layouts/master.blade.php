@@ -82,7 +82,7 @@
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
-    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
+    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
@@ -554,6 +554,13 @@
                                         </li>
                                     </ul>
                                 </div>
+                            </li>
+                        @endcan
+                        @can('Manage system configuration')
+                            <li class="nav-item">
+                                <a class="nav-link menu-link {{ request()->routeIs('system-config.*') ? 'active' : '' }}" href="{{ route('system-config.index') }}">
+                                    <i class="ph-sliders-horizontal"></i> <span>System Configuration</span>
+                                </a>
                             </li>
                         @endcan
                     </ul>
@@ -1354,7 +1361,7 @@
     </div>
 
 
-      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
+      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
             @include('layouts.pages-assets.js.common-js')
       @endif
 

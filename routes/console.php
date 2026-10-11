@@ -15,3 +15,7 @@ Artisan::command('inspire', function () {
 Schedule::command('vitemart:heartbeat')->everyMinute()->withoutOverlapping();
 Schedule::command('vitemart:catalogue-requests')->everyMinute()->withoutOverlapping();
 Schedule::command('vitemart:sync')->everyMinute()->withoutOverlapping(10);
+
+// Lets System Configuration show whether the scheduler (cron / Task Scheduler) is running.
+Schedule::call(fn () => \Illuminate\Support\Facades\Cache::forever('vm_scheduler_last_run', now()->toIso8601String()))
+    ->everyMinute()->name('vitemart:scheduler-heartbeat');

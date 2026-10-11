@@ -57,6 +57,8 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Folder with mysqldump (for "Back up the database now"), set in System Configuration
+            'dump' => array_filter(['dump_binary_path' => env('DB_DUMP_PATH')]),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::ATTR_EMULATE_PREPARES => true,
                 // PDO::ATTR_PERSISTENT => true,
@@ -78,6 +80,8 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Folder with mysqldump (for "Back up the database now"), set in System Configuration
+            'dump' => array_filter(['dump_binary_path' => env('DB_DUMP_PATH')]),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

@@ -166,6 +166,26 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/users/{user}/pin', [SecurityController::class, 'setPin'])->name('set-pin');
     });
 
+    // System configuration: server address, head office, database, email, app, maintenance
+    Route::prefix('system-config')->name('system-config.')->controller(\App\Http\Controllers\SystemConfigController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/app', 'saveApp')->name('app');
+        Route::post('/server', 'saveServer')->name('server');
+        Route::post('/database/test', 'testDatabase')->name('database.test');
+        Route::post('/database', 'saveDatabase')->name('database');
+        Route::post('/mail/test', 'testMail')->middleware('throttle:10,1')->name('mail.test');
+        Route::post('/mail', 'saveMail')->name('mail');
+        Route::post('/advanced', 'saveAdvanced')->name('advanced');
+        Route::post('/hq/test', 'testHq')->middleware('throttle:20,1')->name('hq.test');
+        Route::post('/hq/connect', 'connectBranch')->middleware('throttle:10,1')->name('hq.connect');
+        Route::post('/hq/central', 'makeCentral')->name('hq.central');
+        Route::post('/hq/url', 'changeHqUrl')->name('hq.url');
+        Route::post('/tools/{tool}', 'tool')->name('tool');
+        Route::get('/log', 'log')->name('log');
+        Route::post('/env-backups/restore', 'restoreEnv')->name('env.restore');
+        Route::get('/db-backups/{file}', 'downloadBackup')->where('file', '[A-Za-z0-9._\-]+')->name('db-backup');
+    });
+
     // Catalogue: branch prices, requests to/from head office, field rules, extra barcodes
     Route::controller(\App\Http\Controllers\Catalogue\CatalogueController::class)->group(function () {
         Route::get('/products/{product}/barcodes', 'barcodes')->name('products.barcodes');
