@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Brand extends Model
 {
+    use HasUid;
     use HasFactory;
 
 

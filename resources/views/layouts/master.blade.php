@@ -84,9 +84,10 @@
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
-    @if (Route::is('pos.*'))
+    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*'))
         @include('layouts.pages-assets.css.users-list-css')
     @endif
+
 
     @if (Route::is('inventory.*') || Route::is('stock-locations.*'))
          @include('layouts.pages-assets.css.users-list-css')
@@ -111,6 +112,22 @@
     @if (Route::is('salesperson.*'))
          @include('layouts.pages-assets.css.users-list-css')
     @endif
+    <style>
+        /* Upgraded modules */
+        .min-w-0 { min-width: 0; }
+        .vm-stat .vm-stat-value { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
+        .vm-stat .vm-stat-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--tb-secondary-color, #6c757d); }
+        .vm-stat .vm-stat-sub { font-size: .8rem; }
+        .vm-table td, .vm-table th { vertical-align: middle; }
+        .vm-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85em; }
+        .vm-sticky-actions { position: sticky; bottom: 0; z-index: 5; background: var(--tb-secondary-bg, #fff); border-top: 1px solid var(--tb-border-color, #e9ebec); }
+        .vm-diff-old { background: rgba(240, 101, 72, .12); text-decoration: line-through; }
+        .vm-diff-new { background: rgba(10, 179, 156, .14); }
+        .vm-chip { display: inline-flex; align-items: center; gap: .25rem; padding: .15rem .55rem; border-radius: 1rem; background: var(--tb-light, #f3f6f9); font-size: .8rem; }
+        .vm-bulkbar { display: none; }
+        .vm-bulkbar.show { display: flex; }
+        .table-hover tbody tr.vm-selected { background: rgba(64, 81, 137, .06); }
+    </style>
 </head>
 
 <body>
@@ -305,33 +322,38 @@
                         @can('View product')
                             <li class="nav-item">
                                 <a class="nav-link menu-link collapsed" href="#sidebarproduct" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarproduct">
-                                    <i class="ph-user-circle"></i> <span data-key="t-authentication">Product Managements</span>
+                                    <i class="ph-package"></i> <span data-key="t-authentication">Products & Pricing</span>
                                 </a>
                                 <div class="collapse menu-dropdown" id="sidebarproduct">
                                     <ul class="nav nav-sm flex-column">
-                                        <li class="nav-item">
-                                            <a href="{{ route('products.index') }}" class="nav-link" role="button" data-key="t-signin"> Product </a>
-                                        </li>
+                                        <li class="nav-item"><a href="{{ route('products.index') }}" class="nav-link"> All Products </a></li>
+                                        @can('Create product')
+                                            <li class="nav-item"><a href="{{ route('products.create') }}" class="nav-link"> Add Product </a></li>
+                                        @endcan
+                                        @canany(['Manage price control', 'View price history'])
+                                            <li class="nav-item"><a href="{{ route('pricing.index') }}" class="nav-link"> Price Control </a></li>
+                                            <li class="nav-item"><a href="{{ route('pricing.history') }}" class="nav-link"> Price History </a></li>
+                                        @endcanany
                                     </ul>
                                 </div>
                             </li>
                         @endcan
-
                         @can('View pos')
                             <li class="nav-item">
                                 <a class="nav-link menu-link collapsed" href="#sidebarpos" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarpos">
-                                    <i class="ph-user-circle"></i> <span data-key="t-authentication">Pos Managements</span>
+                                    <i class="ph-shopping-cart"></i> <span data-key="t-authentication">Point of Sale</span>
                                 </a>
                                 <div class="collapse menu-dropdown" id="sidebarpos">
                                     <ul class="nav nav-sm flex-column">
-                                        <li class="nav-item">
-                                            <a href="{{ route('pos.index') }}" class="nav-link" role="button" data-key="t-signin"> POS</a>
-                                        </li>
+                                        <li class="nav-item"><a href="{{ route('pos.index') }}" class="nav-link"> POS Terminal </a></li>
+                                        <li class="nav-item"><a href="{{ route('pos.transactions') }}" class="nav-link"> Sales Transactions </a></li>
+                                        @canany(['View all pos shifts', 'Manage pos shifts'])
+                                            <li class="nav-item"><a href="{{ route('pos.shifts.index') }}" class="nav-link"> Cash Drawer Shifts </a></li>
+                                        @endcanany
                                     </ul>
                                 </div>
                             </li>
                         @endcan
-
                         <!-- =========================================== -->
                         <!-- INVENTORY MANAGEMENT MENU -->
                         <!-- =========================================== -->
@@ -345,9 +367,19 @@
                                     <ul class="nav nav-sm flex-column">
                                         @can('View inventory')
                                             <li class="nav-item">
-                                                <a href="{{ route('inventory.index') }}" class="nav-link" role="button" data-key="t-signin"> Transactions </a>
+                                                <a href="{{ route('inventory.index') }}" class="nav-link" role="button" data-key="t-signin"> Stock Movements </a>
                                             </li>
                                         @endcan
+                                        @canany(['View stock adjustment', 'Create stock adjustment', 'Approve stock adjustment', 'Adjust stock'])
+                                            @php $__pendingAdj = \Illuminate\Support\Facades\Schema::hasTable('stock_adjustments') ? \App\Models\StockAdjustment::where('status', 'pending')->count() : 0; @endphp
+                                            <li class="nav-item">
+                                                <a href="{{ route('adjustments.index') }}" class="nav-link"> Stock Adjustments
+                                                    @if($__pendingAdj)<span class="badge bg-warning ms-1">{{ $__pendingAdj }}</span>@endif
+                                                </a>
+                                            </li>
+                                            <li class="nav-item"><a href="{{ route('adjustments.create', ['type' => 'receive']) }}" class="nav-link"> Receive Goods </a></li>
+                                            <li class="nav-item"><a href="{{ route('adjustments.create', ['type' => 'count']) }}" class="nav-link"> Stock Count </a></li>
+                                        @endcanany
 
                                         @can('View stock levels')
                                             <li class="nav-item">
@@ -438,6 +470,33 @@
                             </li>
                         @endcan
 
+                        @canany(['View branches', 'Manage branches', 'View sync status', 'Manage sync'])
+                            <li class="menu-title"><span data-key="t-menu">Branches</span></li>
+                            <li class="nav-item">
+                                <a class="nav-link menu-link" href="{{ route('mb.branches.index') }}">
+                                    <i class="ph-storefront"></i> <span>Branches</span>
+                                    @php $__mode = \App\Services\MultiBranch\Install::mode(); @endphp
+                                    <span class="badge bg-{{ $__mode === 'central' ? 'primary' : ($__mode === 'branch' ? 'info' : 'secondary') }} ms-auto">{{ $__mode === 'central' ? 'HQ' : ($__mode === 'branch' ? \App\Services\MultiBranch\Install::branchCode() : 'single') }}</span>
+                                </a>
+                            </li>
+                        @endcanany
+                        @canany(['Manage login control', 'View active sessions', 'Force logout users', 'View audit trail'])
+                            <li class="menu-title"><span data-key="t-menu">Security</span></li>
+                            @canany(['Manage login control', 'View active sessions', 'Force logout users'])
+                                <li class="nav-item">
+                                    <a class="nav-link menu-link" href="{{ route('security.index') }}">
+                                        <i class="ph-lock-key"></i> <span>Login Control</span>
+                                    </a>
+                                </li>
+                            @endcanany
+                            @can('View audit trail')
+                                <li class="nav-item">
+                                    <a class="nav-link menu-link" href="{{ route('audit.index') }}">
+                                        <i class="ph-clipboard-text"></i> <span>Audit Trail</span>
+                                    </a>
+                                </li>
+                            @endcan
+                        @endcanany
                         <li class="menu-title"><span data-key="t-menu">Settings</span></li>
                         @can('View store setting')
                             <li class="nav-item">
@@ -638,6 +697,10 @@
                                         <i class="mdi mdi-cog text-muted fs-lg align-middle me-1"></i>
                                         <span class="align-middle">Settings</span>
                                     </a> --}}
+                                    <a class="dropdown-item" href="{{ route('mfa.setup') }}">
+                                        <i class="mdi mdi-shield-key text-muted fs-lg align-middle me-1"></i>
+                                        <span class="align-middle">Two-step sign-in</span>
+                                    </a>
                                     <a class="dropdown-item" href="auth-lockscreen.html">
                                         <i class="mdi mdi-lock text-muted fs-lg align-middle me-1"></i>
                                         <span class="align-middle">Lock screen</span>
@@ -1405,8 +1468,8 @@
     </div>
 
 
-      @if (Route::is('dashboard'))
-            @include('layouts.pages-assets.js.dashboard-list-js')
+      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*'))
+            @include('layouts.pages-assets.js.common-js')
       @endif
 
       @if (Route::is('users.*'))
@@ -1437,11 +1500,9 @@
             @include('layouts.pages-assets.js.banner-list-js')
       @endif
 
-      @if (Route::is('products.*'))
-            @include('layouts.pages-assets.js.product-list-js')
-      @endif
 
-      @if (Route::is('pos.*'))
+
+      @if (Route::is('pos.*') && !Route::is('pos.transactions*') && !Route::is('pos.shifts.*'))
             @include('layouts.pages-assets.js.pos-list-js')
       @endif
 

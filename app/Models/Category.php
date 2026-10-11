@@ -1,11 +1,14 @@
 <?php
 namespace App\Models;
 
+use App\Traits\HasUid;
+
 use App\Models\Brand;
 use Illuminate\Database\Eloquent\Model;
 
 class Category extends Model
 {
+    use HasUid;
     protected $fillable = ['name', 'image', 'parent_id', 'is_featured', 'is_nsfw'];  // NEW: Add is_nsfw
 
     protected $casts = [

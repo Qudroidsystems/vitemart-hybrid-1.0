@@ -110,8 +110,8 @@
                                             @csrf
 
                                             <div class="mb-4" data-aos="fade-up" data-aos-delay="400">
-                                                <label for="email" class="form-label fs-base fw-medium">Email <span class="text-danger">*</span></label>
-                                                <input type="email" class="form-control form-control-lg @error('email') is-invalid @enderror" id="email" name="email" placeholder="Enter your email" value="{{ old('email') }}" required autofocus>
+                                                <label for="email" class="form-label fs-base fw-medium">Email or username <span class="text-danger">*</span></label>
+                                                <input type="text" autocomplete="username" class="form-control form-control-lg @error('email') is-invalid @enderror" id="email" name="email" placeholder="Enter your email or username" value="{{ old('email') }}" required autofocus>
                                                 @error('email')
                                                     <span class="invalid-feedback"><strong>{{ $message }}</strong></span>
                                                 @enderror
@@ -144,7 +144,7 @@
                                         </form>
 
                                         <div class="text-center mt-5" data-aos="fade-up" data-aos-delay="800">
-                                            <p class="mb-0 fs-base">Don't have an account? <a href="{{ route('register') }}" class="fw-semibold text-info text-decoration-underline">Sign Up</a></p>
+                                            @if (Route::has('register'))<p class="mb-0 fs-base">Don't have an account? <a href="{{ route('register') }}" class="fw-semibold text-info text-decoration-underline">Sign Up</a></p>@endif
                                         </div>
                                     </div>
                                 </div>

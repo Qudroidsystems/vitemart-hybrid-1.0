@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+use App\Traits\BelongsToBranch;
+
 use App\Models\User;
 use App\Models\Product;
 use App\Models\StockLocation;
@@ -14,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Stock extends Model
 {
+    use HasUid, BelongsToBranch;
     use HasFactory;
 
     const TYPE_IN = 'in';
@@ -33,7 +37,7 @@ class Stock extends Model
 
     protected $fillable = [
         'product_id',
-        'product_variant_id',
+        'product_variation_id',
         'stock_location_id',
         'destination_location_id',
         'user_id',
@@ -55,9 +59,9 @@ class Stock extends Model
     ];
 
     protected $casts = [
-        'quantity' => 'integer',
-        'previous_quantity' => 'integer',
-        'new_quantity' => 'integer',
+        'quantity' => 'float',
+        'previous_quantity' => 'float',
+        'new_quantity' => 'float',
         'unit_cost' => 'decimal:4',
         'total_cost' => 'decimal:4',
         'expiry_date' => 'date',
@@ -85,7 +89,7 @@ class Stock extends Model
      */
     public function variant(): BelongsTo
     {
-        return $this->belongsTo(ProductVariation::class, 'product_variant_id');
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
     }
 
     /**

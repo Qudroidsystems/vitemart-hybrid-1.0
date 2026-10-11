@@ -348,365 +348,144 @@ class InventoryController extends Controller
 
     public function adjustStock(Request $request)
     {
-        Log::info('Adjust stock request received:', $request->all());
-
+        // Every manual change now goes through the stock-adjustment workflow so it is
+        // confirmed (approved) before it touches stock, and appears in the audit trail.
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'location_id' => 'required|exists:stock_locations,id',
             'adjustment_type' => 'required|in:add,remove,set',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|numeric|min:0',
             'unit_cost' => 'nullable|numeric|min:0',
             'reason' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         if ($validator->fails()) {
-            Log::error('Adjust stock validation failed:', $validator->errors()->toArray());
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
-        DB::beginTransaction();
         try {
-            $product = Product::findOrFail($request->product_id);
-            $location = StockLocation::findOrFail($request->location_id);
-
-            $currentStock = $location->getProductStock($product->id);
-
-            if ($request->adjustment_type === 'set') {
-                $adjustment = $request->quantity - $currentStock;
-                $quantity = abs($adjustment);
-                $previousQuantity = $currentStock;
-                $newQuantity = $request->quantity;
-                $type = $adjustment >= 0 ? 'in' : 'out';
-            } else if ($request->adjustment_type === 'add') {
-                $type = 'in';
-                $quantity = $request->quantity;
-                $previousQuantity = $currentStock;
-                $newQuantity = $currentStock + $quantity;
-            } else {
-                $type = 'out';
-                $quantity = $request->quantity;
-                $previousQuantity = $currentStock;
-                $newQuantity = $currentStock - $quantity;
-
-                if ($currentStock < $quantity) {
-                    Log::warning("Insufficient stock. Available: {$currentStock}, Requested: {$quantity}");
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Cannot remove stock. Available: {$currentStock}, Requested: {$quantity}"
-                    ], 400);
-                }
-            }
-
-            $unitCost = $request->filled('unit_cost') ? $request->unit_cost : $product->price;
-            $totalCost = $unitCost * $quantity;
-
-            $referenceNumber = 'ADJ-' . date('YmdHis') . rand(100, 999);
-
-            $stock = Stock::create([
-                'product_id' => $product->id,
-                'stock_location_id' => $location->id,
-                'user_id' => auth()->id(),
-                'type' => $type,
-                'quantity' => $quantity,
-                'previous_quantity' => $previousQuantity,
-                'new_quantity' => $newQuantity,
-                'unit_cost' => $unitCost,
-                'total_cost' => $totalCost,
-                'reference_number' => $referenceNumber,
-                'reference_type' => 'adjustment',
-                'adjustment_reason' => $request->reason,
+            $adj = app(\App\Services\StockAdjustmentService::class)->create([
+                'type' => $request->adjustment_type === 'set' ? 'count' : 'adjustment',
+                'location_id' => $request->location_id,
+                'reason' => $request->reason,
                 'notes' => $request->notes,
-                'transaction_date' => now(),
-            ]);
-
-            $movementType = ($type === 'in' || $type === 'out') ? 'adjustment' : $type;
-
-            StockMovement::create([
-                'stock_id' => $stock->id,
-                'product_id' => $product->id,
-                'stock_location_id' => $location->id,
-                'movement_type' => $movementType,
-                'quantity' => $quantity,
-                'balance' => $newQuantity,
-                'reference' => $referenceNumber,
-                'description' => $request->reason . ': ' . ($request->notes ?? ''),
-                'user_id' => auth()->id(),
-                'created_at' => now(),
-            ]);
-
-            $newProductStock = $this->updateProductStock($product->id);
-
-            DB::commit();
-            Log::info('Stock adjustment completed successfully');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock adjusted successfully',
-                'stock' => $stock->load(['product', 'user', 'stockLocation']),
-                'product_stock' => $newProductStock
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to adjust stock: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to adjust stock: ' . $e->getMessage()
-            ], 500);
+                'items' => [[
+                    'product_id' => $request->product_id,
+                    'variation_id' => $request->variation_id,
+                    'mode' => $request->adjustment_type,
+                    'quantity' => $request->quantity,
+                    'unit_cost' => $request->unit_cost,
+                ]],
+            ], 'submit');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to adjust stock: ' . $e->getMessage()], 422);
         }
-    }
 
+        return response()->json([
+            'success' => true,
+            'status' => $adj->status,
+            'message' => $adj->status === 'approved'
+                ? 'Stock adjusted successfully'
+                : "Adjustment {$adj->reference} submitted for approval.",
+            'reference' => $adj->reference,
+            'product_stock' => (float) Product::find($request->product_id)->stock,
+        ]);
+    }
     public function transferStock(Request $request)
     {
-        Log::info('Transfer stock request received:', $request->all());
-
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
+            'variation_id' => 'nullable|exists:product_variations,id',
             'from_location_id' => 'required|exists:stock_locations,id',
             'to_location_id' => 'required|exists:stock_locations,id|different:from_location_id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|numeric|min:0.001',
             'reference_number' => 'nullable|string|max:100',
             'notes' => 'nullable|string|max:1000',
             'unit_cost' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
-            Log::error('Transfer stock validation failed:', $validator->errors()->toArray());
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
-        DB::beginTransaction();
         try {
-            $product = Product::findOrFail($request->product_id);
-            $fromLocation = StockLocation::findOrFail($request->from_location_id);
-            $toLocation = StockLocation::findOrFail($request->to_location_id);
-
-            $availableStock = $fromLocation->getProductStock($product->id);
-            if ($availableStock < $request->quantity) {
-                Log::warning("Insufficient stock for transfer. Available: {$availableStock}, Requested: {$request->quantity}");
-                return response()->json([
-                    'success' => false,
-                    'message' => "Insufficient stock. Available: {$availableStock}, Requested: {$request->quantity}"
-                ], 400);
-            }
-
-            $unitCost = $request->filled('unit_cost') ? $request->unit_cost : $product->price;
-            $totalCost = $unitCost * $request->quantity;
-            $referenceNumber = $request->reference_number ?? 'TRF-' . date('YmdHis') . rand(100, 999);
-
-            $fromCurrentStock = $fromLocation->getProductStock($product->id);
-            $toCurrentStock = $toLocation->getProductStock($product->id);
-
-            $stockOut = Stock::create([
-                'product_id' => $product->id,
-                'stock_location_id' => $fromLocation->id,
-                'destination_location_id' => $toLocation->id,
-                'user_id' => auth()->id(),
-                'type' => 'transfer',
-                'quantity' => $request->quantity,
-                'previous_quantity' => $fromCurrentStock,
-                'new_quantity' => $fromCurrentStock - $request->quantity,
-                'unit_cost' => $unitCost,
-                'total_cost' => $totalCost,
-                'reference_number' => $referenceNumber,
-                'reference_type' => 'transfer',
-                'notes' => $request->notes,
-                'transaction_date' => now(),
-            ]);
-
-            $stockIn = Stock::create([
-                'product_id' => $product->id,
-                'stock_location_id' => $toLocation->id,
-                'destination_location_id' => null,
-                'user_id' => auth()->id(),
-                'type' => 'transfer_in',
-                'quantity' => $request->quantity,
-                'previous_quantity' => $toCurrentStock,
-                'new_quantity' => $toCurrentStock + $request->quantity,
-                'unit_cost' => $unitCost,
-                'total_cost' => $totalCost,
-                'reference_number' => $referenceNumber,
-                'reference_type' => 'transfer',
-                'notes' => $request->notes . ' (Transferred from ' . $fromLocation->name . ')',
-                'transaction_date' => now(),
-            ]);
-
-            StockMovement::create([
-                'stock_id' => $stockOut->id,
-                'product_id' => $product->id,
-                'stock_location_id' => $fromLocation->id,
-                'movement_type' => 'transfer_out',
-                'quantity' => $request->quantity,
-                'balance' => $fromCurrentStock - $request->quantity,
-                'reference' => $referenceNumber,
-                'description' => 'Transfer to ' . $toLocation->name . ': ' . ($request->notes ?? ''),
-                'user_id' => auth()->id(),
-                'created_at' => now(),
-            ]);
-
-            StockMovement::create([
-                'stock_id' => $stockIn->id,
-                'product_id' => $product->id,
-                'stock_location_id' => $toLocation->id,
-                'movement_type' => 'transfer_in',
-                'quantity' => $request->quantity,
-                'balance' => $toCurrentStock + $request->quantity,
-                'reference' => $referenceNumber,
-                'description' => 'Transfer from ' . $fromLocation->name . ': ' . ($request->notes ?? ''),
-                'user_id' => auth()->id(),
-                'created_at' => now(),
-            ]);
-
-            $newProductStock = $this->updateProductStock($product->id);
-
-            DB::commit();
-            Log::info('Stock transfer completed successfully');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock transferred successfully',
-                'stock' => $stockOut->load(['product', 'user', 'stockLocation', 'destinationLocation']),
-                'product_stock' => $newProductStock
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to transfer stock: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to transfer stock: ' . $e->getMessage()
-            ], 500);
+            [$out] = app(\App\Services\StockService::class)->transfer(
+                (int) $request->product_id,
+                $request->variation_id ? (int) $request->variation_id : null,
+                (int) $request->from_location_id,
+                (int) $request->to_location_id,
+                (float) $request->quantity,
+                array_filter([
+                    'reference_number' => $request->reference_number,
+                    'notes' => $request->notes,
+                    'unit_cost' => $request->unit_cost,
+                ], fn ($v) => $v !== null && $v !== '')
+            );
+        } catch (\App\Exceptions\InsufficientStockException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to transfer stock: ' . $e->getMessage()], 500);
         }
-    }
 
+        \App\Services\AuditLogger::log('transferred', 'Transferred ' . qty($request->quantity) . ' of ' . Product::find($request->product_id)->title, 'inventory', $out);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stock transferred successfully',
+            'stock' => $out->load(['product', 'user', 'stockLocation', 'destinationLocation']),
+            'product_stock' => (float) Product::find($request->product_id)->stock,
+        ]);
+    }
     public function bulkAdjust(Request $request)
     {
-        Log::info('Bulk adjust request received:', $request->all());
-
         $validator = Validator::make($request->all(), [
             'products' => 'required|array|min:1',
             'products.*.id' => 'required|exists:products,id',
-            'products.*.quantity' => 'required|integer|min:0',
+            'products.*.variation_id' => 'nullable|exists:product_variations,id',
+            'products.*.quantity' => 'required|numeric|min:0',
             'location_id' => 'required|exists:stock_locations,id',
-            'adjustment_type' => 'required|in:add,set',
+            'adjustment_type' => 'required|in:add,remove,set',
             'reason' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         if ($validator->fails()) {
-            Log::error('Bulk adjust validation failed:', $validator->errors()->toArray());
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
-        DB::beginTransaction();
         try {
-            $location = StockLocation::findOrFail($request->location_id);
-            $createdStocks = [];
-            $updatedProducts = [];
-
-            foreach ($request->products as $item) {
-                $product = Product::find($item['id']);
-                if (!$product) continue;
-
-                $currentStock = $location->getProductStock($product->id);
-
-                if ($request->adjustment_type === 'set') {
-                    $adjustment = $item['quantity'] - $currentStock;
-                    $quantity = abs($adjustment);
-                    $previousQuantity = $currentStock;
-                    $newQuantity = $item['quantity'];
-                    $type = $adjustment >= 0 ? 'in' : 'out';
-                } else {
-                    $type = 'in';
-                    $quantity = $item['quantity'];
-                    $previousQuantity = $currentStock;
-                    $newQuantity = $currentStock + $quantity;
-                }
-
-                if ($quantity <= 0) continue;
-
-                $stock = Stock::create([
-                    'product_id' => $product->id,
-                    'stock_location_id' => $location->id,
-                    'user_id' => auth()->id(),
-                    'type' => $type,
-                    'quantity' => $quantity,
-                    'previous_quantity' => $previousQuantity,
-                    'new_quantity' => $newQuantity,
-                    'unit_cost' => $product->price,
-                    'total_cost' => $product->price * $quantity,
-                    'reference_number' => 'BULK-' . date('YmdHis') . rand(100, 999),
-                    'reference_type' => 'adjustment',
-                    'adjustment_reason' => $request->reason,
-                    'notes' => $request->notes,
-                    'transaction_date' => now(),
-                ]);
-
-                $movementType = ($type === 'in' || $type === 'out') ? 'adjustment' : $type;
-
-                StockMovement::create([
-                    'stock_id' => $stock->id,
-                    'product_id' => $product->id,
-                    'stock_location_id' => $location->id,
-                    'movement_type' => $movementType,
-                    'quantity' => $quantity,
-                    'balance' => $newQuantity,
-                    'reference' => 'BULK-' . date('YmdHis') . rand(100, 999),
-                    'description' => $request->reason . ': ' . ($request->notes ?? ''),
-                    'user_id' => auth()->id(),
-                    'created_at' => now(),
-                ]);
-
-                $newProductStock = $this->updateProductStock($product->id);
-
-                $createdStocks[] = $stock;
-                $updatedProducts[] = [
-                    'id' => $product->id,
-                    'title' => $product->title,
-                    'stock' => $newProductStock
-                ];
-            }
-
-            DB::commit();
-            Log::info('Bulk adjustment completed successfully. Count: ' . count($createdStocks));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Bulk adjustment completed successfully',
-                'count' => count($createdStocks),
-                'stocks' => $createdStocks,
-                'products' => $updatedProducts
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to perform bulk adjustment: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to perform bulk adjustment: ' . $e->getMessage()
-            ], 500);
+            $adj = app(\App\Services\StockAdjustmentService::class)->create([
+                'type' => $request->adjustment_type === 'set' ? 'count' : 'adjustment',
+                'location_id' => $request->location_id,
+                'reason' => $request->reason,
+                'notes' => $request->notes,
+                'items' => collect($request->products)->map(fn ($p) => [
+                    'product_id' => $p['id'],
+                    'variation_id' => $p['variation_id'] ?? null,
+                    'mode' => $request->adjustment_type,
+                    'quantity' => $p['quantity'],
+                ])->all(),
+            ], 'submit');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to perform bulk adjustment: ' . $e->getMessage()], 422);
         }
-    }
 
+        return response()->json([
+            'success' => true,
+            'status' => $adj->status,
+            'message' => $adj->status === 'approved'
+                ? 'Bulk adjustment completed successfully'
+                : "Adjustment {$adj->reference} ({$adj->items_count} products) submitted for approval.",
+            'count' => $adj->items_count,
+            'reference' => $adj->reference,
+        ]);
+    }
     public function show($id)
     {
         try {
@@ -1183,34 +962,14 @@ class InventoryController extends Controller
     public function syncAllProductStocks()
     {
         try {
-            $products = Product::all();
-            $updatedCount = 0;
-
-            foreach ($products as $product) {
-                $calculatedStock = $this->calculateProductStockFromInventory($product->id);
-
-                if ($product->stock != $calculatedStock) {
-                    Product::where('id', $product->id)->update(['stock' => $calculatedStock]);
-                    $updatedCount++;
-                    Log::info("Synced product {$product->id} stock: {$product->stock} → {$calculatedStock}");
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => "Synced {$updatedCount} product stocks from inventory",
-                'updated_count' => $updatedCount
-            ]);
+            $count = app(\App\Services\StockService::class)->rebuildAll();
+            \App\Services\AuditLogger::log('stock_synced', "Rebuilt cached stock balances for {$count} products", 'inventory');
+            return response()->json(['success' => true, 'message' => "Synced stock for {$count} products (and their variations).", 'updated_count' => $count]);
         } catch (\Exception $e) {
             Log::error('Failed to sync product stocks: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to sync product stocks: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Failed to sync product stocks: ' . $e->getMessage()], 500);
         }
     }
-
-
     public function getStockHistory($id, Request $request)
 {
     $product = Product::with(['category', 'brand'])->findOrFail($id);

@@ -2,24 +2,45 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+
+use App\Services\BarcodeGenerator;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class ProductVariation extends Model
 {
+    use HasUid;
+    use Auditable;
+
+    protected string $auditModule = 'products';
+    protected array $auditExclude = ['stock'];
+
     protected $fillable = [
         'product_id',
+        'name',
         'sku',
-        'barcode', // Add this
+        'barcode',
         'price',
+        'cost_price',
         'sale_price',
+        'wholesale_price',
+        'stock',
+        'reorder_level',
+        'is_active',
         'attributes',
         'image'
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'sale_price' => 'decimal:2',
+        'wholesale_price' => 'decimal:2',
+        'stock' => 'float',
+        'reorder_level' => 'float',
+        'is_active' => 'boolean',
         'attributes' => 'array',
     ];
 
@@ -33,7 +54,7 @@ class ProductVariation extends Model
         // Generate barcode if not provided
         static::creating(function ($variation) {
             if (empty($variation->barcode)) {
-                $variation->barcode = 'VAR' . strtoupper(Str::random(10));
+                $variation->barcode = BarcodeGenerator::next();
             }
         });
 
@@ -57,9 +78,45 @@ class ProductVariation extends Model
     public function getDisplayNameAttribute()
     {
         $productName = $this->product->title ?? '';
-        $attributes = $this->attributes ? implode(', ', $this->attributes) : '';
+        $label = $this->label;
 
-        return $productName . ($attributes ? ' (' . $attributes . ')' : '');
+        return $productName . ($label ? ' (' . $label . ')' : '');
+    }
+
+    /**
+     * "Red / XL" – from the saved name or the attribute values.
+     */
+    public function getLabelAttribute(): string
+    {
+        if (!empty($this->getAttributeFromArray('name'))) {
+            return $this->getAttributeFromArray('name');
+        }
+        $attrs = $this->getAttribute('attributes');
+        if (is_string($attrs)) {
+            $attrs = json_decode($attrs, true);
+        }
+        return is_array($attrs) ? implode(' / ', array_filter(array_map('strval', $attrs))) : '';
+    }
+
+    public function getSellingPriceAttribute(): float
+    {
+        if ($this->sale_price !== null && (float) $this->sale_price > 0) {
+            return (float) $this->sale_price;
+        }
+        if ($this->price !== null && (float) $this->price > 0) {
+            return (float) $this->price;
+        }
+        return (float) ($this->product?->selling_price ?? 0);
+    }
+
+    public function getEffectiveCostAttribute(): float
+    {
+        return (float) ($this->cost_price ?? $this->product?->cost_price ?? 0);
+    }
+
+    public function auditLabel(): string
+    {
+        return ($this->product->title ?? 'Product') . ' – ' . $this->label;
     }
 
     /**
@@ -67,7 +124,7 @@ class ProductVariation extends Model
      */
     public function getEffectivePriceAttribute()
     {
-        return $this->sale_price ?? $this->price;
+        return $this->selling_price;
     }
 
     /**
@@ -83,7 +140,7 @@ class ProductVariation extends Model
      */
     public function getIsInStockAttribute()
     {
-        return $this->stock > 0;
+        return (float) $this->stock > 0;
     }
 
     /**

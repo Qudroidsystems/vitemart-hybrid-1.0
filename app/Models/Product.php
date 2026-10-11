@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+
 use App\Models\Brand;
 use App\Models\Stock;
 use App\Models\Category;
@@ -11,13 +13,30 @@ use App\Models\ProductReview;
 use App\Models\StockMovement;
 use App\Models\ProductAttribute;
 use App\Models\ProductVariation;
+use App\Services\BarcodeGenerator;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Log;
 
 class Product extends Model
 {
+    use HasUid;
+    use Auditable;
+
+    protected string $auditModule = 'products';
+    protected array $auditExclude = ['stock', 'sold_quantity'];
+
     protected $fillable = [
+        'wholesale_price',
+        'promo_price',
+        'promo_starts_at',
+        'promo_ends_at',
+        'reorder_level',
+        'track_stock',
+        'is_weighted',
+        'plu_code',
+        'allow_price_override',
         'title',
         'sku',
         'barcode',
@@ -43,6 +62,14 @@ class Product extends Model
         'is_featured' => 'boolean',
         'is_nsfw' => 'boolean',
         'is_active' => 'boolean',
+        'wholesale_price' => 'decimal:2',
+        'promo_price' => 'decimal:2',
+        'promo_starts_at' => 'datetime',
+        'promo_ends_at' => 'datetime',
+        'reorder_level' => 'float',
+        'track_stock' => 'boolean',
+        'is_weighted' => 'boolean',
+        'allow_price_override' => 'boolean',
     ];
 
     protected $appends = [
@@ -62,19 +89,16 @@ class Product extends Model
     {
         parent::boot();
 
-        // Generate barcode if not provided
+        // Generate an in-store EAN-13 barcode if none was supplied.
         static::creating(function ($product) {
             if (empty($product->barcode)) {
-                $product->barcode = 'PROD' . strtoupper(uniqid());
+                $product->barcode = BarcodeGenerator::next();
             }
         });
 
-        // Calculate stock from inventory when accessing stock attribute
-        static::retrieved(function ($product) {
-            if (isset($product->stock)) {
-                $product->stock = $product->calculateStockFromInventory();
-            }
-        });
+        // NOTE: stock used to be recalculated with a SQL query every time a product
+        // was loaded, which made product lists and the POS slow. The `stock` column is
+        // now kept current by the database trigger and StockService instead.
     }
 
     /**
@@ -100,7 +124,7 @@ class Product extends Model
      */
     public function getCurrentStockAttribute()
     {
-        return $this->calculateStockFromInventory();
+        return (float) ($this->attributes['stock'] ?? 0);
     }
 
     /**
@@ -187,12 +211,18 @@ class Product extends Model
     // Add total sold calculation
     public function getTotalSoldAttribute()
     {
+        if (array_key_exists('total_sold', $this->attributes)) {
+            return (float) $this->attributes['total_sold'];
+        }
         return $this->orderItems()->sum('quantity');
     }
 
     // Add reviews count accessor
     public function getReviewsCountAttribute()
     {
+        if (array_key_exists('reviews_count', $this->attributes)) {
+            return (int) $this->attributes['reviews_count'];
+        }
         return $this->reviews()->count();
     }
 
@@ -266,8 +296,68 @@ class Product extends Model
     public function units()
     {
         return $this->belongsToMany(Unit::class, 'product_unit')
-                    ->withPivot('quantity_per_unit')
+                    ->withPivot('id', 'quantity_per_unit', 'price', 'wholesale_price', 'cost_price', 'barcode', 'is_base', 'is_sellable', 'sort_order')
+                    ->orderBy('product_unit.quantity_per_unit')
                     ->withTimestamps();
+    }
+
+    /**
+     * Packaging rows (Piece, Pack of 6, Carton of 24 …) with their own price & barcode.
+     */
+    public function packs()
+    {
+        return $this->hasMany(ProductUnit::class)->orderBy('quantity_per_unit')->orderBy('id');
+    }
+
+    public function basePack(): ?ProductUnit
+    {
+        $packs = $this->relationLoaded('packs') ? $this->packs : $this->packs()->with('unit')->get();
+        return $packs->firstWhere('is_base', true) ?? $packs->firstWhere('quantity_per_unit', 1) ?? $packs->first();
+    }
+
+    public function baseUnitName(): string
+    {
+        return $this->basePack()?->unit?->short_name
+            ?: ($this->basePack()?->unit?->name ?? ($this->is_weighted ? 'kg' : 'pcs'));
+    }
+
+    public function priceHistories()
+    {
+        return $this->hasMany(PriceHistory::class)->latest();
+    }
+
+    public function isPromoActive(): bool
+    {
+        if ($this->promo_price === null || (float) $this->promo_price <= 0) {
+            return false;
+        }
+        $now = now();
+        return (!$this->promo_starts_at || $this->promo_starts_at <= $now)
+            && (!$this->promo_ends_at || $this->promo_ends_at >= $now);
+    }
+
+    /**
+     * The price a customer pays for ONE base unit right now (promo > sale > regular).
+     */
+    public function getSellingPriceAttribute(): float
+    {
+        if ($this->isPromoActive()) {
+            return (float) $this->promo_price;
+        }
+        if ($this->sale_price !== null && (float) $this->sale_price > 0) {
+            return (float) $this->sale_price;
+        }
+        return (float) $this->price;
+    }
+
+    public function isLowOnStock(): bool
+    {
+        return $this->track_stock !== false && $this->current_stock <= (float) ($this->reorder_level ?? 10);
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->title . ($this->sku ? " ({$this->sku})" : '');
     }
 
     public function primaryUnit()

@@ -9,6 +9,14 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\MultiBranch\BranchController;
+use App\Http\Controllers\LoyaltyReportController;
+use App\Http\Controllers\AuditTrailController;
+use App\Http\Controllers\PriceControlController;
+use App\Http\Controllers\SecurityController;
+use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\PosShiftController;
+use App\Http\Controllers\PosTransactionController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PermissionController;
@@ -35,7 +43,19 @@ Route::get('/email/verify/{id}/{hash}', [APIAuthController::class, 'verifyEmail'
     ->middleware('signed')
     ->name('verification.verify');
 
-Auth::routes();
+// Public self-registration is disabled – staff accounts are created by an admin.
+Auth::routes(['register' => false]);
+
+// Two-step sign-in (TOTP)
+Route::middleware('auth')->prefix('two-factor')->name('mfa.')->controller(\App\Http\Controllers\Auth\TwoFactorController::class)->group(function () {
+    Route::get('/challenge', 'challenge')->name('challenge');
+    Route::post('/challenge', 'verify')->middleware('throttle:6,1')->name('verify');
+    Route::get('/', 'setup')->name('setup');
+    Route::post('/confirm', 'confirm')->middleware('throttle:10,1')->name('confirm');
+    Route::post('/recovery-codes', 'regenerate')->middleware('throttle:5,1')->name('regenerate');
+    Route::post('/disable', 'disable')->middleware('throttle:5,1')->name('disable');
+    Route::post('/reset/{user}', 'reset')->name('reset');
+});
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
@@ -86,31 +106,78 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('categories', CategoryController::class)->except(['show']);
     Route::get('categories/{category}/edit', [CategoryController::class, 'edit'])->name('categories.edit');
 
-    // Product Management
+    // Product Management – fixed-path routes MUST come before the resource,
+    // otherwise products/{product} swallows /products/search, /products/export …
+    Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
+    Route::get('/products/lookup', [ProductController::class, 'lookup'])->name('products.lookup');
+    Route::get('/products/search', [ProductController::class, 'lookup'])->name('products.search');
+    Route::get('/products/realtime-stock', [ProductController::class, 'realtimeStock'])->name('products.realtime-stock');
+    Route::get('/products/export', [ProductController::class, 'export'])->name('products.export');
+    Route::get('/products/generate-barcode', [ProductController::class, 'generateBarcode'])->name('products.generate-barcode');
+    Route::get('/products/generate-sku', [ProductController::class, 'generateSku'])->name('products.generate-sku');
+    Route::get('/products/check-barcode', [ProductController::class, 'checkBarcode'])->name('products.check-barcode');
+    Route::get('/products/labels', [ProductController::class, 'labels'])->name('products.labels');
+    Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
+    Route::post('/products/bulk-update', [ProductController::class, 'bulkUpdate'])->name('products.bulkUpdate');
+    Route::post('/products/bulk-action', [ProductController::class, 'bulkAction'])->name('products.bulk-action');
+    Route::post('/products/units', [ProductController::class, 'storeUnit'])->name('products.units.store');
     Route::resource('products', ProductController::class);
     Route::delete('/products/{id}/images/{imageId}', [ProductController::class, 'deleteImage'])->name('products.images.destroy');
-    Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
     Route::get('/products/{product}/inventory', [ProductController::class, 'inventoryLog'])->name('products.inventory');
-    Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
-    Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
-    Route::get('/products/realtime-stock', [ProductController::class, 'realtimeStock'])->name('products.realtime-stock');
-    Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
-    Route::get('/products/export', [ProductController::class, 'export'])->name('products.export');
-    Route::post('/products/bulk-update', [ProductController::class, 'bulkUpdate'])->name('products.bulkUpdate');
 
+    // Price control
+    Route::prefix('price-control')->name('pricing.')->group(function () {
+        Route::get('/', [PriceControlController::class, 'index'])->name('index');
+        Route::post('/preview', [PriceControlController::class, 'preview'])->name('preview');
+        Route::post('/apply', [PriceControlController::class, 'apply'])->name('apply');
+        Route::post('/quick', [PriceControlController::class, 'quickUpdate'])->name('quick');
+        Route::post('/promo', [PriceControlController::class, 'promo'])->name('promo');
+        Route::get('/history', [PriceControlController::class, 'history'])->name('history');
+        Route::get('/batches/{batch}', [PriceControlController::class, 'batch'])->name('batch');
+        Route::post('/batches/{batch}/revert', [PriceControlController::class, 'revert'])->name('revert');
+    });
 
-    Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
-    Route::get('/pos/search', [PosController::class, 'search'])->name('pos.search');
-    Route::post('/pos/save-order', [PosController::class, 'savePosOrder'])->name('pos.order.save');
-    Route::get('/pos/receipt/{orderId}', [PosController::class, 'receipt'])->name('pos.receipt');
-    // Add this route for product units
-    Route::get('/api/products/{product}/units', [PosController::class, 'getProductUnits'])
-    ->name('api.product.units')
-    ->middleware('auth');
+    // Stock adjustments (with confirmation / approval)
+    Route::prefix('stock-adjustments')->name('adjustments.')->group(function () {
+        Route::get('/', [StockAdjustmentController::class, 'index'])->name('index');
+        Route::get('/create', [StockAdjustmentController::class, 'create'])->name('create');
+        Route::post('/', [StockAdjustmentController::class, 'store'])->name('store');
+        Route::post('/quick', [StockAdjustmentController::class, 'quick'])->name('quick');
+        Route::post('/bulk-approve', [StockAdjustmentController::class, 'bulkApprove'])->name('bulk-approve');
+        Route::get('/{adjustment}', [StockAdjustmentController::class, 'show'])->name('show');
+        Route::post('/{adjustment}/approve', [StockAdjustmentController::class, 'approve'])->name('approve');
+        Route::post('/{adjustment}/reject', [StockAdjustmentController::class, 'reject'])->name('reject');
+        Route::post('/{adjustment}/cancel', [StockAdjustmentController::class, 'cancel'])->name('cancel');
+    });
 
+    // Security: login control, sessions, force logout
+    Route::prefix('security')->name('security.')->group(function () {
+        Route::get('/', [SecurityController::class, 'index'])->name('index');
+        Route::post('/settings', [SecurityController::class, 'updateSettings'])->name('settings');
+        Route::post('/roles/{role}', [SecurityController::class, 'updateRoleRule'])->name('role-rule');
+        Route::post('/users/{user}', [SecurityController::class, 'updateUserRule'])->name('user-rule');
+        Route::post('/logout-all', [SecurityController::class, 'logoutAll'])->name('logout-all');
+        Route::post('/logout-user/{user}', [SecurityController::class, 'logoutUser'])->name('logout-user');
+        Route::post('/sessions/{session}/end', [SecurityController::class, 'endSession'])->name('end-session');
+        Route::post('/schedule-logout', [SecurityController::class, 'scheduleLogout'])->name('schedule-logout');
+        Route::post('/users/{user}/pin', [SecurityController::class, 'setPin'])->name('set-pin');
+    });
 
+    // Multi-branch
+    Route::prefix('branches')->name('mb.branches.')->group(function () {
+        Route::get('/', [BranchController::class, 'index'])->name('index');
+        Route::post('/', [BranchController::class, 'store'])->name('store');
+        Route::get('/{branch}', [BranchController::class, 'show'])->name('show');
+        Route::put('/{branch}', [BranchController::class, 'update'])->name('update');
+        Route::post('/{branch}/enrollment-code', [BranchController::class, 'issueCode'])->name('issue-code');
+        Route::post('/{branch}/user-access', [BranchController::class, 'userAccess'])->name('user-access');
+        Route::post('/installations/{installation}/revoke', [BranchController::class, 'revoke'])->name('revoke');
+    });
 
-
+    // Audit trail
+    Route::get('/audit-trail', [AuditTrailController::class, 'index'])->name('audit.index');
+    Route::get('/audit-trail/export', [AuditTrailController::class, 'export'])->name('audit.export');
+    Route::get('/audit-trail/{log}', [AuditTrailController::class, 'show'])->name('audit.show');
 
             // Customer Routes
     Route::resource('customers', CustomerController::class);
@@ -120,16 +187,42 @@ Route::middleware(['auth'])->group(function () {
 
 
     // POS Routes
-    Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
-    Route::get('/pos/search', [PosController::class, 'search'])->name('pos.search');
-    Route::post('/pos/save-order', [PosController::class, 'savePosOrder'])->name('pos.order.save');
-    Route::get('/pos/receipt/{orderId}', [PosController::class, 'generateReceipt'])->name('pos.receipt');
-    Route::get('/pos/print/{orderId}', [PosController::class, 'printReceipt'])->name('pos.print');
-    Route::get('/pos/barcode/{barcode}', [PosController::class, 'getProductByBarcode'])->name('pos.barcode');
-    Route::get('/pos/today-sales', [PosController::class, 'getTodaySales'])->name('pos.today-sales');
-    Route::post('/pos/void-order/{orderId}', [PosController::class, 'voidOrder'])->name('pos.void');
-    Route::get('/pos/product-stock/{productId}', [PosController::class, 'getProductStock'])->name('pos.product-stock');
-    Route::post('/pos/apply-discount', [PosController::class, 'applyDiscount'])->name('pos.apply-discount');
+    Route::prefix('pos')->name('pos.')->group(function () {
+        Route::get('/', [PosController::class, 'index'])->name('index');
+        Route::get('/lookup', [PosController::class, 'lookup'])->name('lookup');
+        Route::get('/search', [PosController::class, 'search'])->name('search');
+        Route::get('/products', [PosController::class, 'browse'])->name('browse');
+        Route::post('/checkout', [PosController::class, 'checkout'])->name('checkout');
+        Route::post('/save-order', [PosController::class, 'savePosOrder'])->name('order.save');
+        Route::post('/authorize', [PosController::class, 'authorizeOverride'])->name('authorize');
+        Route::get('/receipt/{orderId}', [PosController::class, 'generateReceipt'])->name('receipt');
+        Route::get('/print/{orderId}', [PosController::class, 'generateReceipt'])->name('print');
+        Route::get('/barcode/{barcode}', [PosController::class, 'getProductByBarcode'])->name('barcode');
+        Route::get('/today-sales', [PosController::class, 'getTodaySales'])->name('today-sales');
+        Route::post('/void-order/{orderId}', [PosController::class, 'voidOrder'])->name('void');
+        Route::post('/return/{orderId}', [PosController::class, 'returnItems'])->name('return');
+        Route::get('/order/{orderId}', [PosController::class, 'orderDetails'])->name('order');
+        Route::get('/product-stock/{productId}', [PosController::class, 'getProductStock'])->name('product-stock');
+        Route::get('/customers', [PosController::class, 'customers'])->name('customers');
+
+        // Held / parked sales
+        Route::get('/held', [PosController::class, 'heldIndex'])->name('held.index');
+        Route::post('/held', [PosController::class, 'holdSale'])->name('held.store');
+        Route::get('/held/{held}', [PosController::class, 'heldShow'])->name('held.show');
+        Route::delete('/held/{held}', [PosController::class, 'heldDestroy'])->name('held.destroy');
+
+        // Shifts / cash drawer
+        Route::get('/shifts', [PosShiftController::class, 'index'])->name('shifts.index');
+        Route::get('/shifts/current', [PosShiftController::class, 'current'])->name('shifts.current');
+        Route::post('/shifts/open', [PosShiftController::class, 'open'])->name('shifts.open');
+        Route::post('/shifts/cash', [PosShiftController::class, 'cashMovement'])->name('shifts.cash');
+        Route::post('/shifts/{shift}/close', [PosShiftController::class, 'close'])->name('shifts.close');
+        Route::get('/shifts/{shift}/report', [PosShiftController::class, 'report'])->name('shifts.report');
+
+        // Sales transactions
+        Route::get('/transactions', [PosTransactionController::class, 'index'])->name('transactions');
+        Route::get('/transactions/export', [PosTransactionController::class, 'export'])->name('transactions.export');
+    });
 
     Route::get('/reports/loyalty-points', [LoyaltyReportController::class, 'index'])->name('reports.loyalty-points');
     Route::get('/reports/loyalty-points/{customer}', [LoyaltyReportController::class, 'customerHistory'])->name('reports.loyalty-points.history');
@@ -164,12 +257,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('stock-locations/{id}/set-default', [StockLocationController::class, 'setAsDefault'])->name('stock-locations.set-default');
     Route::post('stock-locations/{id}/toggle-status', [StockLocationController::class, 'toggleStatus'])->name('stock-locations.toggle-status');
 
+    Route::post('stock-locations/update-sort', [StockLocationController::class, 'updateSortOrder'])->name('stock-locations.update-sort');
+    Route::get('stock-locations/export', [StockLocationController::class, 'exportLocations'])->name('stock-locations.export');
+
     // Main resource route - this creates ALL standard routes (index, create, store, show, edit, update, destroy)
     Route::resource('stock-locations', StockLocationController::class);
 
-    // Other non-conflicting routes
-    Route::post('stock-locations/update-sort', [StockLocationController::class, 'updateSortOrder'])->name('stock-locations.update-sort');
-    Route::get('stock-locations/export', [StockLocationController::class, 'exportLocations'])->name('stock-locations.export');
 
     Route::get('/settings/store', [StoreSettingController::class, 'index'])->name('settings.store.index');
     Route::put('/settings/store', [StoreSettingController::class, 'update'])->name('settings.store.update');

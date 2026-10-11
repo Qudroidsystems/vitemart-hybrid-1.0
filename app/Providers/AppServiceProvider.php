@@ -18,6 +18,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        require_once app_path('Support/helpers.php');
+
         // Register FCM Service
         $this->app->singleton(FcmService::class, function ($app) {
             return new FcmService();
@@ -61,6 +63,20 @@ class AppServiceProvider extends ServiceProvider
 
         // Set default string length for MySQL
         \Illuminate\Support\Facades\Schema::defaultStringLength(191);
+
+        // Super Admin can do everything – including pages added later.
+        \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
+            return method_exists($user, 'hasRole') && $user->hasRole('Super Admin') ? true : null;
+        });
+
+        // Audit trail for models that can't use the Auditable trait directly.
+        foreach ([\App\Models\Category::class, \App\Models\Brand::class, \App\Models\Customer::class,
+                  \App\Models\Unit::class, \App\Models\StoreSetting::class, \App\Models\StockLocation::class,
+                  \App\Models\User::class, \Spatie\Permission\Models\Role::class] as $auditClass) {
+            if (class_exists($auditClass)) {
+                $auditClass::observe(\App\Observers\AuditObserver::class);
+            }
+        }
 
         // Custom validation rules (if needed)
         $this->registerCustomValidators();

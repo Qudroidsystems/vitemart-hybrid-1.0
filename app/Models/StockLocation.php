@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+use App\Traits\BelongsToBranch;
+
 use App\Models\Stock;
 use App\Models\Product;
 use App\Models\StockMovement;
@@ -12,11 +15,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class StockLocation extends Model
 {
+    use HasUid, BelongsToBranch;
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
         'code',
+        'type',
+        'branch_id',
         'address',
         'contact_person',
         'phone',

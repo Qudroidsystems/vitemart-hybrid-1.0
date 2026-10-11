@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+use App\Traits\BelongsToBranch;
+
 use App\Models\Order;
 use App\Models\Stock;
 use App\Models\Address;
@@ -17,6 +20,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
+    use HasUid, BelongsToBranch;
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
@@ -47,6 +51,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'last_notification_at',
         'notification_count',
         'commission_rate', // For sales commission per user (e.g., 5.00%)
+        'is_active',
+        'login_rule',
+        'login_start_time',
+        'login_end_time',
+        'login_days',
+        'max_discount_percent',
     ];
 
     /**
@@ -56,6 +66,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'fcm_tokens',
+        'pos_pin',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -63,6 +76,11 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_active'         => 'boolean',
+        'login_days'        => 'array',
+        'force_logout_at'   => 'datetime',
+        'last_login_at'     => 'datetime',
+        'two_factor_confirmed_at' => 'datetime',
         'date_of_birth'     => 'date',
         'created_at'        => 'datetime',
         'updated_at'        => 'datetime',
@@ -79,6 +97,30 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     // Relationships
+    /** Extra branches this person may work at (HQ staff, relief cashiers). */
+    public function branches()
+    {
+        return $this->belongsToMany(Branch::class, 'branch_user')->withTimestamps();
+    }
+
+    /** Branch ids this user may see / act in. Null = all branches. */
+    public function allowedBranchIds(): ?array
+    {
+        if ($this->hasRole('Super Admin') || $this->can('Access all branches')) {
+            return null;
+        }
+        return array_values(array_unique(array_filter(array_merge(
+            [$this->branch_id],
+            $this->branches()->pluck('branches.id')->all()
+        ))));
+    }
+
+    public function canWorkAtBranch(?int $branchId): bool
+    {
+        $allowed = $this->allowedBranchIds();
+        return $allowed === null || $branchId === null || in_array($branchId, $allowed, true);
+    }
+
     public function addresses()
     {
         return $this->hasMany(Address::class);

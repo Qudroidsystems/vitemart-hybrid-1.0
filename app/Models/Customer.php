@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+use App\Traits\BelongsToBranch;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model
 {
+    use HasUid, BelongsToBranch;
     use HasFactory, SoftDeletes;
 
   // In App\Models\Customer.php

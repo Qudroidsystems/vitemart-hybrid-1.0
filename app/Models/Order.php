@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HasUid;
+use App\Traits\BelongsToBranch;
+
 use App\Models\User;
 use App\Models\Customer;
 use App\Models\Address;
@@ -12,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Order extends Model
 {
+    use HasUid, BelongsToBranch;
     use HasFactory;
 
    protected $fillable = [
@@ -34,6 +38,19 @@ class Order extends Model
         'payment_status',
         'commission_rate',      // NEW
         'commission_amount',    // NEW
+        'subtotal',
+        'discount_type',
+        'discount_value',
+        'discount_amount',
+        'amount_paid',
+        'change_due',
+        'cost_total',
+        'pos_shift_id',
+        'channel',
+        'notes',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     protected $casts = [
@@ -47,6 +64,12 @@ class Order extends Model
         'barcode_data' => 'array',
         'commission_rate' => 'decimal:2',     // NEW
         'commission_amount' => 'decimal:2',   // NEW
+        'subtotal' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'amount_paid' => 'decimal:2',
+        'change_due' => 'decimal:2',
+        'cost_total' => 'decimal:2',
+        'voided_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -74,6 +97,21 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(OrderPayment::class);
+    }
+
+    public function shift()
+    {
+        return $this->belongsTo(PosShift::class, 'pos_shift_id');
+    }
+
+    public function getProfitAttribute(): ?float
+    {
+        return $this->cost_total !== null ? round((float) $this->total_amount - (float) $this->cost_total, 2) : null;
     }
 
     public function shippingAddress()

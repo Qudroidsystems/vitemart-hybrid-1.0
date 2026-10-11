@@ -267,7 +267,7 @@
     <div class="order-info">
         <p><strong>RECEIPT NO:</strong> {{ $order->id }}</p>
         <p><strong>DATE:</strong> {{ $order->order_date->format('d M Y, h:i A') }}</p>
-        <p><strong>CASHIER:</strong> {{ auth()->user()->name ?? 'Admin' }}</p>
+        <p><strong>CASHIER:</strong> {{ $order->user ? trim($order->user->first_name . ' ' . $order->user->last_name) : (auth()->user()->name ?? 'Admin') }}</p>
         @if($order->customer)
             <p><strong>CUSTOMER:</strong> {{ strtoupper($order->customer->first_name . ' ' . $order->customer->last_name) }}</p>
             @if($order->customer->phone_number)
@@ -277,6 +277,9 @@
             <p><strong>CUSTOMER:</strong> WALK-IN CUSTOMER</p>
         @endif
         <p><strong>PAYMENT:</strong> {{ strtoupper($order->payment_method) }}</p>
+        @if ($order->status === 'cancelled')
+            <p style="font-size:16px;font-weight:bold;border:2px solid #000;text-align:center;padding:4px;margin-top:6px">*** VOIDED ***</p>
+        @endif
     </div>
 
     <div class="divider"></div>
@@ -300,9 +303,12 @@
                         @if($item->sku)
                             <br><small class="item-details">SKU: {{ $item->sku }}</small>
                         @endif
+                        @if(($item->discount_amount ?? 0) > 0)
+                            <br><small class="item-details">Discount -{{ $currency }}{{ number_format($item->discount_amount, 2) }}</small>
+                        @endif
                     </td>
                     <td class="text-center">
-                        <strong>{{ number_format($item->quantity, $item->is_unit_mode ? 3 : 0) }}</strong>
+                        <strong>{{ qty($item->quantity) }}</strong>
                     </td>
                     <td class="text-center">
                         @if($item->unit_name)
@@ -340,14 +346,18 @@
             <td class="text-left"><strong>GRAND TOTAL:</strong></td>
             <td class="text-right"><strong>{{ $currency }}{{ number_format($order->total_amount, 2) }}</strong></td>
         </tr>
-        @if($order->payment_method == 'cash' && isset($order->cash_received))
+        @php $changeShown = false; @endphp
+        @foreach(($payments ?? collect()) as $pay)
+            @php $addChange = $pay->method === 'cash' && !$changeShown ? (float) $order->change_due : 0; if ($addChange) { $changeShown = true; } @endphp
             <tr class="subtotal-row">
-                <td class="text-left"><strong>CASH RECEIVED:</strong></td>
-                <td class="text-right"><strong>{{ $currency }}{{ number_format($order->cash_received, 2) }}</strong></td>
+                <td class="text-left">{{ strtoupper($pay->method) }}{{ $pay->reference ? ' (' . $pay->reference . ')' : '' }}:</td>
+                <td class="text-right">{{ $currency }}{{ number_format($pay->amount + $addChange, 2) }}</td>
             </tr>
+        @endforeach
+        @if(($order->change_due ?? 0) > 0)
             <tr class="subtotal-row">
                 <td class="text-left"><strong>CHANGE:</strong></td>
-                <td class="text-right"><strong>{{ $currency }}{{ number_format($order->cash_received - $order->total_amount, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ $currency }}{{ number_format($order->change_due, 2) }}</strong></td>
             </tr>
         @endif
     </table>
@@ -368,7 +378,7 @@
 
     <!-- Footer -->
     <div class="footer text-center">
-        <p><strong>{{ $store?->footer_note ?? 'THANK YOU FOR SHOPPING WITH US!' }}</strong></p>
+        <p><strong>{{ $store?->footer_note ?: ($footer ?? 'THANK YOU FOR SHOPPING WITH US!') }}</strong></p>
         <p>** This is a computer-generated receipt **</p>
         <p><strong>Printed:</strong> {{ now()->format('d M Y h:i A') }}</p>
         <p>Powered by ViteMart 2.0 | Developed by Qudroid System</p>
