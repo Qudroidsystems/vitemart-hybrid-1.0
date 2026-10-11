@@ -130,6 +130,85 @@
         .qm-add:hover, .qm-add:focus { background: #0b5f58; color: #fff; }
         .qm-add:disabled { background: var(--pos-accent); opacity: .45; }
 
+        /* ===================== motion ===================== */
+        :root { --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-spring: cubic-bezier(.34, 1.56, .64, 1); }
+        @keyframes vmDropIn { from { opacity: 0; transform: translateY(-8px) scaleY(.96); } to { opacity: 1; transform: none; } }
+        @keyframes vmDropOut { to { opacity: 0; transform: translateY(-6px) scaleY(.97); } }
+        @keyframes vmRowIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+        @keyframes vmFadeUp { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+        @keyframes vmLineIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+        @keyframes vmFlash { 0% { background: rgba(15,118,110,.24); } 100% { background: var(--pos-accent-soft); } }
+        @keyframes vmBump { 0% { transform: scale(1); } 35% { transform: scale(1.16); } 100% { transform: scale(1); } }
+        @keyframes vmShake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(3px); } 30%, 50%, 70% { transform: translateX(-6px); } 40%, 60% { transform: translateX(6px); } }
+        @keyframes vmShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+        @keyframes vmScanBar { 0% { left: -35%; } 100% { left: 100%; } }
+        @keyframes vmPopIn { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+        @keyframes vmDraw { to { stroke-dashoffset: 0; } }
+        @keyframes vmRing { from { transform: scale(.7); opacity: .6; } to { transform: scale(1.7); opacity: 0; } }
+
+        /* search / scan dropdown */
+        #results { transform-origin: top center; }
+        #results.anim-open { animation: vmDropIn .2s var(--ease-out); }
+        #results.anim-open .r, #results.anim-open > .p-3 { animation: vmRowIn .24s var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 10) * 24ms); }
+        #results .r.fresh { animation: vmRowIn .14s ease-out both; animation-delay: 0ms; }
+        #results.anim-close { animation: vmDropOut .12s ease-in forwards; pointer-events: none; }
+        #results .r { transition: background-color .12s; }
+        .scan-progress { position: absolute; left: 14px; right: 14px; bottom: 2px; height: 3px; overflow: hidden; border-radius: 3px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+        .scan-progress::after { content: ''; position: absolute; top: 0; left: -35%; width: 35%; height: 100%; border-radius: 3px; background: var(--pos-accent); animation: vmScanBar .9s ease-in-out infinite; }
+        .scan-wrap.loading .scan-progress { opacity: 1; }
+        #scan { transition: border-color .15s, box-shadow .15s; }
+        #scan.ok-flash { border-color: #10b981; box-shadow: 0 0 0 .25rem rgba(16,185,129,.2); }
+        #scan.err-shake { border-color: var(--pos-danger); box-shadow: 0 0 0 .25rem rgba(192,57,43,.15); animation: vmShake .4s; }
+
+        /* product grid */
+        .tile { transition: transform .14s var(--ease-out), border-color .14s, box-shadow .14s; }
+        .tile:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(17,24,39,.08); }
+        .tile:active { transform: scale(.96); }
+        .grid.anim .tile { animation: vmFadeUp .3s var(--ease-out) both; animation-delay: calc(min(var(--i, 0), 24) * 18ms); }
+        .tile.skel { pointer-events: none; }
+        .tile.skel .ph, .tile.skel .t, .tile.skel .p { background: linear-gradient(90deg, #eef1f6 25%, #f8fafc 50%, #eef1f6 75%); background-size: 200% 100%; animation: vmShimmer 1.2s linear infinite; border-radius: 6px; }
+        .tile.skel .t { height: 14px; width: 85%; }
+        .tile.skel .p { height: 14px; width: 45%; }
+        .cats button { transition: background-color .15s, color .15s, border-color .15s, transform .1s; }
+        .cats button:active { transform: scale(.94); }
+
+        /* cart */
+        .line { transition: background-color .2s, opacity .17s ease-in, transform .17s ease-in; }
+        .line.anim-new { animation: vmLineIn .3s var(--ease-out), vmFlash .9s ease-out; }
+        .line.anim-bump { animation: vmFlash .9s ease-out; }
+        .line.anim-bump .qtybox input, .line.anim-bump .tot, .line.anim-new .tot { animation: vmBump .34s var(--ease-spring); }
+        .line.removing { opacity: 0; transform: translateX(36px); }
+        .empty-cart { animation: vmFadeUp .35s var(--ease-out); }
+        .bump { display: inline-block; animation: vmBump .34s var(--ease-spring); }
+        .pay { transition: opacity .2s, transform .1s, box-shadow .2s; }
+        .pay:not(:disabled):hover { box-shadow: 0 8px 22px rgba(15,118,110,.32); }
+        .pay:not(:disabled):active { transform: scale(.98); }
+        .pay.ready { animation: vmBump .4s var(--ease-spring); }
+        .fly-dot { position: fixed; z-index: 2000; width: 44px; height: 44px; border-radius: 50%; background: var(--pos-accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 8px 18px rgba(15,118,110,.35); pointer-events: none; overflow: hidden; border: 2px solid #fff; }
+        .fly-dot img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* quantity + sale-complete dialogs */
+        #qtyModal.fade .modal-dialog { transform: scale(.94) translateY(10px); transition: transform .24s var(--ease-out); }
+        #qtyModal.show .modal-dialog { transform: none; }
+        .qm-packs button, .qm-quick button { transition: border-color .12s, background-color .12s, transform .1s; }
+        .qm-packs button:active, .qm-quick button:active, .qm-qty button:active { transform: scale(.93); }
+        .qm-note:not(:empty) { animation: vmRowIn .2s ease-out; }
+        .qm-qty.err-shake-box { border-color: var(--pos-danger); animation: vmShake .4s; }
+        #doneModal.fade .modal-dialog { transform: scale(.88); transition: transform .32s var(--ease-spring); }
+        #doneModal.show .modal-dialog { transform: none; }
+        .done-check { position: relative; width: 76px; height: 76px; margin: 0 auto; }
+        .done-check svg { width: 76px; height: 76px; display: block; }
+        .done-check circle { fill: #10b981; transform-origin: center; }
+        .done-check path { fill: none; stroke: #fff; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 50; stroke-dashoffset: 50; }
+        .done-check .ringfx { position: absolute; inset: 0; border-radius: 50%; border: 3px solid #10b981; opacity: 0; }
+        #doneModal.show .done-check circle { animation: vmPopIn .45s var(--ease-spring) both; }
+        #doneModal.show .done-check path { animation: vmDraw .35s .3s ease-out forwards; }
+        #doneModal.show .done-check .ringfx { animation: vmRing .75s .22s ease-out; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+        }
+
         .offline { display: none; }
         .vm-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
         body.is-offline .offline { display: inline-block; }
@@ -196,6 +275,7 @@
                 <i class="bi bi-upc-scan"></i>
                 <input id="scan" class="form-control" autocomplete="off" placeholder="Scan barcode or type product name…  (3* then scan = 3 pieces)" autofocus>
                 <span class="scan-hint d-none d-md-inline"><kbd>F2</kbd></span>
+                <div class="scan-progress"></div>
                 <div id="results"></div>
             </div>
             <div class="cats" id="cats">
@@ -304,7 +384,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content text-center">
             <div class="modal-body py-4">
-                <i class="bi bi-check-circle-fill text-success" style="font-size:56px"></i>
+                <div class="done-check" aria-hidden="true"><span class="ringfx"></span><svg viewBox="0 0 76 76"><circle cx="38" cy="38" r="36"/><path d="M23 39l11 11 20-22"/></svg></div>
                 <h4 class="mt-2 mb-1">Sale complete</h4>
                 <div class="text-muted" id="dRef"></div>
                 <div class="display-6 fw-bold mt-3" id="dChange"></div>
@@ -443,6 +523,54 @@
     let shift = null;
     let qtyMultiplier = null;
 
+    // ------------------------------------------------------------------ motion helpers
+    const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let flash = null;        // {uid, kind: 'new'|'bump'} – line to animate on the next render
+    let pickFrom = null;     // screen rect the last picked product came from (for the fly-to-cart dot)
+    let lastTotal = null;
+    let lastCount = 0;
+    function restart(el, cls) { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+    function countUp(el, from, to, ms = 260) {
+        if (!el) return;
+        cancelAnimationFrame(el._raf);
+        if (reduceMotion || from === to) { el.textContent = M(to); return; }
+        const t0 = performance.now();
+        const step = now => {
+            const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+            el.textContent = M(round2(from + (to - from) * e));
+            if (k < 1) el._raf = requestAnimationFrame(step);
+        };
+        el._raf = requestAnimationFrame(step);
+    }
+    function flyToCart(item) {
+        const from = pickFrom; pickFrom = null;
+        if (reduceMotion || !from || !document.body.animate) return;
+        const to = $('#cart').getBoundingClientRect();
+        const dot = document.createElement('div');
+        dot.className = 'fly-dot';
+        dot.innerHTML = item.thumbnail ? `<img src="${item.thumbnail}" alt="">` : '<i class="bi bi-bag-plus"></i>';
+        const sx = from.left + from.width / 2 - 22, sy = from.top + from.height / 2 - 22;
+        const dx = (to.left + 48 - 22) - sx, dy = (to.top + 28 - 22) - sy;
+        dot.style.left = sx + 'px'; dot.style.top = sy + 'px';
+        document.body.appendChild(dot);
+        dot.animate([
+            {transform: 'translate(0,0) scale(.5)', opacity: 0},
+            {transform: `translate(${dx * .45}px, ${dy * .45 - 90}px) scale(1.05)`, opacity: 1, offset: .45},
+            {transform: `translate(${dx}px, ${dy}px) scale(.3)`, opacity: .15},
+        ], {duration: 540, easing: 'cubic-bezier(.45,.05,.55,.95)'}).onfinish = () => dot.remove();
+    }
+    function flashScan(ok) {
+        const el = document.getElementById('scan'); if (!el) return;
+        const cls = ok ? 'ok-flash' : 'err-shake';
+        el.classList.remove('ok-flash', 'err-shake'); void el.offsetWidth; el.classList.add(cls);
+        clearTimeout(flashScan.t); flashScan.t = setTimeout(() => el.classList.remove(cls), ok ? 380 : 480);
+    }
+    let loadingCount = 0;
+    function searching(on) {
+        loadingCount = Math.max(0, loadingCount + (on ? 1 : -1));
+        document.querySelector('.scan-wrap')?.classList.toggle('loading', loadingCount > 0);
+    }
+
     function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
     function load() {
         try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (s && Array.isArray(s.lines)) state = Object.assign(state, s); } catch (e) {}
@@ -472,6 +600,7 @@
         return {sub, disc, ptsValue, total, items};
     }
     function beep(ok = true) {
+        flashScan(ok);
         try {
             const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
             const o = ctx.createOscillator(), g = ctx.createGain();
@@ -493,7 +622,8 @@
                 const need = Number(l.qty) * Number(pk.qty || 1);
                 const low = l.item.track_stock && need > stockBase;
                 const disc = lineDiscount(l);
-                return `<div class="line ${state.selected === l.uid ? 'sel' : ''}" data-uid="${l.uid}">
+                const anim = flash && flash.uid === l.uid ? ' anim-' + flash.kind : '';
+                return `<div class="line ${state.selected === l.uid ? 'sel' : ''}${anim}" data-uid="${l.uid}">
                     <div>
                         <div class="nm">${VM.esc(l.item.title)}</div>
                         <div class="vari">${l.item.variant ? VM.esc(l.item.variant) + ' · ' : ''}${M(unitPrice(l))} / ${VM.esc(pk.name || 'unit')}${l.overridden ? ' <span class="badge bg-warning text-dark">price changed</span>' : ''}${l.item.on_promo ? ' <span class="badge bg-danger">promo</span>' : ''}</div>
@@ -522,9 +652,18 @@
         $('#tDisc').textContent = '−' + M(t.disc) + (state.discount && state.discount.type === 'percent' ? ` (${state.discount.value}%)` : '');
         $('#tPtsRow').style.display = t.ptsValue ? '' : 'none';
         $('#tPts').textContent = '−' + M(t.ptsValue);
-        $('#tTotal').textContent = M(t.total);
+        flash = null;
+        if (lastTotal !== null && lastTotal !== t.total) {
+            countUp($('#tTotal'), lastTotal, t.total);
+            restart($('#tTotal'), 'bump');
+        } else {
+            $('#tTotal').textContent = M(t.total);
+        }
+        lastTotal = t.total;
         $('#payAmt').textContent = state.lines.length ? M(t.total) : '';
         $('#btnPay').disabled = !state.lines.length;
+        if (state.lines.length && !lastCount) restart($('#btnPay'), 'ready');
+        lastCount = state.lines.length;
 
         // customer
         if (state.customer) {
@@ -548,15 +687,18 @@
         if (existing) {
             existing.qty = Number(existing.qty) + Number(qty);
             state.selected = existing.uid;
+            flash = {uid: existing.uid, kind: 'bump'};
             // move to top
             state.lines = [existing, ...state.lines.filter(l => l !== existing)];
         } else {
             const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
             state.lines.unshift({uid, item, pack_id: packId, qty: Number(qty), price: null, discount_type: null, discount_value: 0, overridden: false});
             state.selected = uid;
+            flash = {uid, kind: 'new'};
         }
         beep(true);
         render();
+        flyToCart(item);
         $('#cart').scrollTop = 0;
     }
 
@@ -607,7 +749,8 @@
         const ok = qty > 0 && isFinite(qty);
         $('#qmUnit').textContent = '(' + (pk.name || 'unit') + ')';
         $('#qmEach').textContent = M(pk.price) + ' per ' + (pk.name || 'unit');
-        $('#qmTotal').textContent = M(ok ? round2(Number(pk.price) * qty) : 0);
+        const qmTotalText = M(ok ? round2(Number(pk.price) * qty) : 0);
+        if ($('#qmTotal').textContent !== qmTotalText) { $('#qmTotal').textContent = qmTotalText; if (qtyModalEl.classList.contains('show')) restart($('#qmTotal'), 'bump'); }
         const existing = state.lines.find(l => l.item.key === it.key && String(l.pack_id) === String(qm.packId) && !l.overridden && !l.item.is_weighted);
         $('#qmInCart').innerHTML = existing ? `<i class="bi bi-cart-check me-1"></i>${VM.qty(existing.qty)} already in the cart – this will be added to it` : '';
         const inCartBase = state.lines.filter(l => l.item.key === it.key).reduce((a, l) => a + Number(l.qty) * Number(packOf(l).qty || 1), 0);
@@ -638,7 +781,8 @@
             return;
         }
         const qty = Number(raw);
-        if (!(qty > 0)) { beep(false); qmInput.focus(); qmInput.select(); return; }
+        if (!(qty > 0)) { beep(false); restart($('.qm-qty'), 'err-shake-box'); setTimeout(() => $('.qm-qty').classList.remove('err-shake-box'), 600); qmInput.focus(); qmInput.select(); return; }
+        pickFrom = $('#qmAdd').getBoundingClientRect();
         addItem(qm.item, qty, qm.packId);
         bootstrap.Modal.getInstance(qtyModalEl).hide();
     }
@@ -668,6 +812,7 @@
     qtyModalEl.addEventListener('shown.bs.modal', () => { qmInput.focus(); qmInput.select(); });
     qtyModalEl.addEventListener('hidden.bs.modal', () => {
         qm.item = null;
+        pickFrom = null;
         scan.focus();
         if (qm.pendingScan) { scan.value = qm.pendingScan; qm.pendingScan = null; submitScan(); }
     });
@@ -688,22 +833,40 @@
     let resultItems = [];
     let activeIdx = 0;
 
+    let hideTimer = null;
+    function openResults() {
+        const wasOpen = results.style.display === 'block' && !results.classList.contains('anim-close');
+        clearTimeout(hideTimer);
+        results.classList.remove('anim-close');
+        results.style.display = 'block';
+        if (!wasOpen) restart(results, 'anim-open');
+        return wasOpen;
+    }
     function showResults(items) {
         resultItems = items;
         activeIdx = 0;
-        if (!items.length) { results.innerHTML = '<div class="p-3 text-muted">No matching products</div>'; results.style.display = 'block'; return; }
-        results.innerHTML = items.map((it, i) => `<div class="r ${i === 0 ? 'active' : ''}" data-i="${i}">
+        const wasOpen = results.style.display === 'block' && !results.classList.contains('anim-close');
+        if (!items.length) { results.innerHTML = '<div class="p-3 text-muted"><i class="bi bi-search me-1"></i>No matching products</div>'; openResults(); return; }
+        results.innerHTML = items.map((it, i) => `<div class="r ${i === 0 ? 'active' : ''}${wasOpen ? ' fresh' : ''}" style="--i:${i}" data-i="${i}">
             ${it.thumbnail ? `<img src="${it.thumbnail}" width="40" height="40" class="rounded" alt="">` : '<div class="rounded bg-light d-flex align-items-center justify-content-center" style="width:40px;height:40px"><i class="bi bi-box text-muted"></i></div>'}
             <div class="flex-grow-1 min-w-0"><div class="fw-semibold text-truncate">${VM.esc(it.title)}${it.variant ? ' – ' + VM.esc(it.variant) : ''}</div>
             <div class="fs-sm text-muted">${VM.esc(it.sku || '')} · ${it.track_stock ? VM.qty(it.stock) + ' ' + VM.esc(it.base_unit) + ' in stock' : 'not tracked'}</div></div>
             <div class="fw-bold">${M(it.price)}</div></div>`).join('');
-        results.style.display = 'block';
+        openResults();
     }
-    function hideResults() { results.style.display = 'none'; resultItems = []; }
+    function hideResults() {
+        resultItems = [];
+        if (results.style.display !== 'block' || results.classList.contains('anim-close')) return;
+        if (reduceMotion) { results.style.display = 'none'; return; }
+        results.classList.remove('anim-open');
+        results.classList.add('anim-close');
+        hideTimer = setTimeout(() => { results.style.display = 'none'; results.classList.remove('anim-close'); }, 120);
+    }
     results.addEventListener('mousedown', e => {
         const r = e.target.closest('.r'); if (!r) return;
         e.preventDefault();
         const it = resultItems[r.dataset.i], q = qtyMultiplier;
+        pickFrom = r.getBoundingClientRect();
         qtyMultiplier = null; scan.value = ''; hideResults();
         pickItem(it, q);
     });
@@ -711,10 +874,11 @@
     const liveSearch = VM.debounce(async () => {
         const q = scan.value.trim().replace(/^\d+(\.\d+)?\*/, '');
         if (q.length < 2 || /^\d{8,}$/.test(q)) { if (!q) hideResults(); return; }
+        searching(true);
         try {
             const r = await VM.api(R.lookup + '?q=' + encodeURIComponent(q) + customerParam());
             if (scan.value.trim().replace(/^\d+(\.\d+)?\*/, '') === q) showResults(r.items);
-        } catch (e) {}
+        } catch (e) {} finally { searching(false); }
     }, 220);
     scan.addEventListener('input', liveSearch);
 
@@ -728,13 +892,16 @@
         if (m) { qtyMultiplier = Number(m[1]); raw = m[2].trim(); if (!raw) { scan.value = m[1] + '*'; return; } }
         if (resultItems.length && results.style.display === 'block' && !/^\d{8,}$/.test(raw)) {
             const it = resultItems[activeIdx], q = qtyMultiplier;
+            pickFrom = $$('.r', results)[activeIdx]?.getBoundingClientRect() || null;
             qtyMultiplier = null; scan.value = ''; hideResults(); pickItem(it, q); return;
         }
+        searching(true);
         try {
             const r = await VM.api(R.lookup + '?q=' + encodeURIComponent(raw) + customerParam());
             if (r.exact && r.items.length === 1) {
                 const it = r.items[0];
                 const q = it.scale ? it.qty : qtyMultiplier;
+                pickFrom = scan.getBoundingClientRect();
                 qtyMultiplier = null; scan.value = ''; hideResults();
                 pickItem(it, q);
             } else if (r.items.length) {
@@ -745,6 +912,7 @@
                 VM.toast('No product found for "' + raw + '"', 'error');
             }
         } catch (e) { beep(false); VM.error(e); }
+        finally { searching(false); }
         qtyMultiplier = null;
     }
     scan.addEventListener('keydown', e => {
@@ -759,16 +927,18 @@
 
     // ------------------------------------------------------------------ product grid
     async function loadGrid(cat = '') {
-        $('#grid').innerHTML = '<div class="text-muted p-3">Loading…</div>';
+        $('#grid').classList.remove('anim');
+        $('#grid').innerHTML = Array.from({length: 12}, () => '<div class="tile skel"><div class="ph"></div><div class="t"></div><div class="p"></div></div>').join('');
         try {
             const r = await VM.api(R.browse + '?category=' + cat + customerParam());
-            $('#grid').innerHTML = r.items.map((it, i) => `<button class="tile ${it.track_stock && it.stock <= 0 ? 'out' : ''}" data-i="${i}">
+            $('#grid').innerHTML = r.items.map((it, i) => `<button class="tile ${it.track_stock && it.stock <= 0 ? 'out' : ''}" style="--i:${i}" data-i="${i}">
                 <div class="ph">${it.thumbnail ? `<img src="${it.thumbnail}" alt="" loading="lazy">` : '<i class="bi bi-box"></i>'}</div>
                 <div class="t">${VM.esc(it.title)}${it.variant ? ' – ' + VM.esc(it.variant) : ''}</div>
                 <div class="p">${M(it.price)}</div>
                 <div class="s">${it.track_stock ? VM.qty(it.stock) + ' ' + VM.esc(it.base_unit) : '&nbsp;'}</div>
             </button>`).join('') || '<div class="text-muted p-3">No products in this category.</div>';
-            $$('#grid .tile').forEach(t => t.addEventListener('click', () => { const q = qtyMultiplier; qtyMultiplier = null; pickItem(r.items[t.dataset.i], q); }));
+            restart($('#grid'), 'anim');
+            $$('#grid .tile').forEach(t => t.addEventListener('click', () => { const q = qtyMultiplier; qtyMultiplier = null; pickFrom = t.getBoundingClientRect(); pickItem(r.items[t.dataset.i], q); }));
         } catch (e) { $('#grid').innerHTML = '<div class="text-danger p-3">Could not load products.</div>'; }
     }
     $$('#cats button').forEach(b => b.addEventListener('click', () => {
@@ -782,9 +952,9 @@
         state.selected = l.uid;
         const act = e.target.closest('[data-act]')?.dataset.act;
         const step = l.item.is_weighted ? 0.1 : 1;
-        if (act === 'inc') { l.qty = round2(Number(l.qty) + step); }
-        else if (act === 'dec') { l.qty = Math.max(step, round2(Number(l.qty) - step)); }
-        else if (act === 'rm') { state.lines = state.lines.filter(x => x !== l); }
+        if (act === 'inc') { l.qty = round2(Number(l.qty) + step); flash = {uid: l.uid, kind: 'bump'}; }
+        else if (act === 'dec') { l.qty = Math.max(step, round2(Number(l.qty) - step)); flash = {uid: l.uid, kind: 'bump'}; }
+        else if (act === 'rm') { removeLine(l, lineEl); return; }
         else if (act === 'disc') { await lineDiscountDialog(l); }
         else if (act === 'price') { await priceDialog(l); }
         else if (act === 'qty' || act === 'pack') { return; }
@@ -798,6 +968,14 @@
         render();
     });
 
+    function removeLine(l, el = null) {
+        el = el || document.querySelector(`#cart .line[data-uid="${l.uid}"]`);
+        const done = () => { state.lines = state.lines.filter(x => x !== l); render(); };
+        if (!el || reduceMotion) return done();
+        el.style.height = el.offsetHeight + 'px';
+        el.classList.add('removing');
+        setTimeout(done, 170);
+    }
     async function lineDiscountDialog(l) {
         const r = await Swal.fire({
             title: 'Discount on ' + l.item.title,
@@ -1026,7 +1204,8 @@
             payModal.hide();
             resetSale();
             $('#dRef').textContent = 'Receipt ' + res.order_id + ' · ' + M(res.total);
-            $('#dChange').textContent = M(res.change);
+            $('#dChange').textContent = M(0);
+            setTimeout(() => countUp($('#dChange'), 0, Number(res.change) || 0, 650), 250);
             if (res.pending_payments > 0) VM.toast('Transfer of ' + M(res.pending_payments) + ' is waiting for a supervisor to confirm', 'info');
             bootstrap.Modal.getOrCreateInstance('#doneModal').show();
             refreshShift();
@@ -1269,7 +1448,8 @@
             const step = l.item.is_weighted ? 0.1 : 1;
             if (e.key === '+') l.qty = round2(Number(l.qty) + step);
             if (e.key === '-') l.qty = Math.max(step, round2(Number(l.qty) - step));
-            if (e.key === 'Delete') state.lines = state.lines.filter(x => x !== l);
+            flash = {uid: l.uid, kind: 'bump'};
+            if (e.key === 'Delete') { removeLine(l); return; }
             render();
         }
     });
