@@ -529,6 +529,8 @@ class DatabaseSeeder extends Seeder
             'brands'         => '🏷️ Brands',
             'units'          => '📏 Units',
             'products'       => '📦 Products',
+            'product_unit'   => '📦 Product Packs / Units',
+            'stock_adjustments' => '📥 Stock Adjustments',
             'stocks'         => '📊 Stock Records',
             'inventory_logs' => '📝 Inventory Logs',
             'orders'         => '🧾 Orders',
@@ -566,6 +568,7 @@ class DatabaseSeeder extends Seeder
     {
         return [
             'CustomerSeeder' => '🧑‍🤝‍🧑 Seeding sample customers...',
+            'ProductSeeder'  => '🛒 Seeding sample supermarket products with opening stock...',
         ];
     }
 }
