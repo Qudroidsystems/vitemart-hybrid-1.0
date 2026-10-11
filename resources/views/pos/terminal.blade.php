@@ -61,7 +61,16 @@
         .tile .t { font-weight: 600; font-size: 13px; line-height: 1.2; height: 2.4em; overflow: hidden; }
         .tile .p { font-weight: 700; color: var(--pos-accent); }
         .tile .s { font-size: 11px; color: var(--pos-muted); }
-        .tile.out { opacity: .55; }
+        .tile.out { opacity: .6; cursor: not-allowed; }
+        .tile.out .ph { filter: grayscale(1); }
+        .stk { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; line-height: 1.6; white-space: nowrap; }
+        .stk.ok { background: #e7f6ef; color: #0f7a4a; }
+        .stk.low { background: #fff4de; color: #a35a00; }
+        .stk.none { background: #fde8e8; color: #b42318; }
+        .stk.nt { background: #f1f3f7; color: var(--pos-muted); font-weight: 600; }
+        .tile .s { margin-top: auto; }
+        #results .r.out { opacity: .6; }
+        .qm-stock { margin-top: 4px; }
 
         /* ---- Cart: sizes follow --cs (cart text size: .9 normal, 1 large, 1.15 extra large) ---- */
         .pos-right { --cs: 1; }
@@ -488,6 +497,7 @@
                     <div class="flex-grow-1" style="min-width:0">
                         <div class="qm-title" id="qmTitle"></div>
                         <div class="qm-meta" id="qmMeta"></div>
+                        <div class="qm-stock" id="qmStock"></div>
                     </div>
                     <button type="button" class="btn-close align-self-start" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -644,6 +654,42 @@
         } catch (e) {}
     }
 
+    // ------------------------------------------------------------------ stock
+    // Stock is what this till's location holds (from the server). Unless the shop allows
+    // negative stock, the cart can never ask for more than that.
+    function stockUnit(it) {
+        const b = (it.packs || []).find(p => p.is_base) || (it.packs || [])[0];
+        for (const t of b ? [b.name, b.short] : []) {
+            const v = String(t || '').trim().toLowerCase().replace(/\.$/, '');
+            if (/^(kg|kgs|kilo|kilograms?|kilogrammes?)$/.test(v)) return 'kg';
+            if (/^(g|gm|gms|gr|grams?|grammes?)$/.test(v)) return 'g';
+            if (/^(l|lt|ltr|litres?|liters?)$/.test(v)) return 'L';
+            if (/^(ml|millilitres?|milliliters?)$/.test(v)) return 'ml';
+        }
+        return it.base_unit || (b && (b.short || b.name)) || '';
+    }
+    const enforceStock = it => !!it.track_stock && !CFG.allowNegative;
+    const lineBase = l => Number(l.qty) * Number(packOf(l).qty || 1);
+    const inCartBase = (it, except = null) => state.lines.filter(l => l.item.key === it.key && l !== except).reduce((a, l) => a + lineBase(l), 0);
+    const stockLeft = (it, except = null) => Math.round((Number(it.stock) - inCartBase(it, except)) * 1000) / 1000;
+    function stockBadge(it, extra = '') {
+        if (!it.track_stock) return `<span class="stk nt">Stock not tracked</span>`;
+        const n = Number(it.stock), u = VM.esc(stockUnit(it));
+        if (n <= 0) return `<span class="stk none"><i class="bi bi-x-circle"></i>Out of stock</span>`;
+        return `<span class="stk ${n <= 5 ? 'low' : 'ok'}">${VM.qty(n)} ${u} ${extra || 'in stock'}</span>`;
+    }
+    function stockRefused(it, needBase, except = null) {
+        if (!enforceStock(it)) return false;
+        const left = stockLeft(it, except);
+        if (needBase <= left + 0.0001) return false;
+        beep(false);
+        VM.toast(left <= 0
+            ? (Number(it.stock) <= 0 ? it.title + ' is out of stock' : 'All ' + VM.qty(it.stock) + ' ' + stockUnit(it) + ' of ' + it.title + ' are already in the cart')
+            : except ? 'Only ' + VM.qty(it.stock) + ' ' + stockUnit(it) + ' of ' + it.title + ' in stock'
+            : 'Only ' + VM.qty(left) + ' ' + stockUnit(it) + ' of ' + it.title + ' left', 'error');
+        return true;
+    }
+
     // ------------------------------------------------------------------ render cart
     function render() {
         const cart = $('#cart');
@@ -655,13 +701,13 @@
                 const packs = (l.item.packs || []);
                 const stockBase = Number(l.item.stock);
                 const need = Number(l.qty) * Number(pk.qty || 1);
-                const low = l.item.track_stock && need > stockBase;
+                const low = l.item.track_stock && inCartBase(l.item) > stockBase + 0.0001;
                 const disc = lineDiscount(l);
                 const anim = flash && flash.uid === l.uid ? ' anim-' + flash.kind : '';
                 return `<div class="line ${state.selected === l.uid ? 'sel' : ''}${anim}" data-uid="${l.uid}">
                     <div>
                         <div class="nm">${VM.esc(l.item.title)}</div>
-                        <div class="vari">${l.item.variant ? VM.esc(l.item.variant) + ' · ' : ''}${M(unitPrice(l))} / ${VM.esc(pk.name || 'unit')}${l.overridden ? ' <span class="badge bg-warning text-dark">price changed</span>' : ''}${l.item.on_promo ? ' <span class="badge bg-danger">promo</span>' : ''}</div>
+                        <div class="vari">${l.item.variant ? VM.esc(l.item.variant) + ' · ' : ''}${M(unitPrice(l))} / ${VM.esc(pk.name || 'unit')}${l.item.track_stock ? ' · <span class="' + (low ? 'text-danger fw-bold' : '') + '">' + VM.qty(stockBase) + ' ' + VM.esc(stockUnit(l.item)) + ' in stock</span>' : ''}${l.overridden ? ' <span class="badge bg-warning text-dark">price changed</span>' : ''}${l.item.on_promo ? ' <span class="badge bg-danger">promo</span>' : ''}</div>
                     </div>
                     <div class="tot">${M(lineNet(l))}</div>
                     <div class="ctl">
@@ -675,7 +721,7 @@
                         <button type="button" class="btn btn-sm btn-light" data-act="price" title="Change price"><i class="bi bi-pencil"></i></button>
                         <button type="button" class="btn btn-sm btn-light text-danger ms-auto" data-act="rm" title="Remove (Del)"><i class="bi bi-x-lg"></i></button>
                         ${disc ? `<span class="disc w-100">Discount −${M(disc)}${l.discount_type === 'percent' ? ' (' + l.discount_value + '%)' : ''}</span>` : ''}
-                        ${low ? `<span class="warn w-100"><i class="bi bi-exclamation-triangle"></i> Only ${VM.qty(stockBase)} ${VM.esc(l.item.base_unit)} in stock</span>` : ''}
+                        ${low ? `<span class="warn w-100"><i class="bi bi-exclamation-triangle"></i> Only ${VM.qty(stockBase)} ${VM.esc(stockUnit(l.item))} in stock</span>` : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -719,6 +765,8 @@
     function addItem(item, qty = null, packId = null) {
         qty = qty ?? (item.qty || 1);
         packId = packId ?? item.pack_id ?? (item.packs && item.packs[0] ? item.packs[0].id : null);
+        const pk = (item.packs || []).find(p => packKey(p.id) === packKey(packId)) || {qty: 1};
+        if (stockRefused(item, Number(qty) * Number(pk.qty || 1))) return false;
         // Same item + same pack → one line, quantities (or weights) added together.
         // Scale-label barcodes stay separate: each label is its own weighed bag.
         const existing = !item.scale && state.lines.find(l => !l.item.scale && sameLine(l, item, packId));
@@ -738,6 +786,7 @@
         render();
         flyToCart(item);
         $('#cart').scrollTop = 0;
+        return true;
     }
 
     // ------------------------------------------------------------------ quantity dialog
@@ -753,6 +802,7 @@
 
     function pickItem(item, qty = null) {
         // Items sold by weight/volume always ask, so the cashier enters how much is being bought.
+        if (enforceStock(item) && stockLeft(item) <= 0) { stockRefused(item, 1); scan.focus(); return; }
         const measured = item.is_weighted || (item.packs || []).some(p => measureOf(p));
         if ((!askQty && !measured) || item.scale || qty != null) { addItem(item, qty); scan.focus(); return; }
         openQtyDialog(item);
@@ -840,9 +890,18 @@
         qm.pendingScan = null;
         qm.burst = null;
         $('#qmTitle').textContent = item.title + (item.variant ? ' – ' + item.variant : '');
-        $('#qmMeta').textContent = [item.sku, item.track_stock ? VM.qty(item.stock) + ' ' + baseSym(item) + ' in stock' : 'Stock not tracked'].filter(Boolean).join(' · ');
+        $('#qmMeta').textContent = item.sku || '';
+        const inCart = inCartBase(item);
+        $('#qmStock').innerHTML = stockBadge(item) + (item.track_stock && inCart > 0 ? ` <span class="stk nt">${VM.qty(inCart)} ${VM.esc(stockUnit(item))} in cart</span>` : '');
         $('#qmPh').innerHTML = item.thumbnail ? `<img src="${item.thumbnail}" alt="">` : '<i class="bi bi-box"></i>';
         qm.entry = 'pack';
+        // Less than one unit left of a weighed item → start with what's left
+        if (enforceStock(item) && qty == null) {
+            const pk0 = (item.packs || []).find(p => packKey(p.id) === packKey(qm.packId)) || {qty: 1};
+            const leftP = Math.floor(stockLeft(item) / Number(pk0.qty || 1) * 1000) / 1000;
+            const frac = item.is_weighted || (item.packs || []).some(p => measureOf(p));
+            if (frac && leftP > 0 && leftP < qm.initial) qm.initial = leftP;
+        }
         qmInput.value = qm.initial;
         renderQtyPacks();
         renderQtyEntry();
@@ -874,8 +933,12 @@
         $('#qmInCart').innerHTML = existing ? `<i class="bi bi-cart-check me-1"></i>${fmt3(existing.qty)} ${VM.esc(unitSym(pk))} already in the cart – this will be added to it` : '';
         const inCartBase = state.lines.filter(l => l.item.key === it.key).reduce((a, l) => a + Number(l.qty) * Number(packOf(l).qty || 1), 0);
         const need = inCartBase + (ok ? qty * Number(pk.qty || 1) : 0);
-        $('#qmWarn').innerHTML = it.track_stock && need > Number(it.stock) ? `<i class="bi bi-exclamation-triangle me-1"></i>Only ${VM.qty(it.stock)} ${VM.esc(baseSym(it))} in stock` : '';
-        $('#qmAdd').disabled = !ok;
+        const over = it.track_stock && need > Number(it.stock) + 0.0001;
+        const left = Math.max(0, Math.round((Number(it.stock) - inCartBase) * 1000) / 1000);
+        const leftInPack = Math.floor(left / Number(pk.qty || 1) * 1000) / 1000;
+        $('#qmWarn').innerHTML = over ? `<i class="bi bi-exclamation-triangle me-1"></i>Only ${VM.qty(left)} ${VM.esc(stockUnit(it))} available${Number(pk.qty || 1) !== 1 ? ' (' + VM.qty(leftInPack) + ' ' + VM.esc(pk.name || '') + ')' : ''}${enforceStock(it) ? ' – reduce the quantity' : ''}` : '';
+        $('#qmWarn').style.color = over && enforceStock(it) ? 'var(--pos-danger, #dc2626)' : 'var(--pos-warn)';
+        $('#qmAdd').disabled = !ok || (over && enforceStock(it));
     }
     function confirmQtyDialog() {
         if (!qm.item) return;
@@ -894,7 +957,7 @@
                 }
                 if (isQty(b.value)) { const keep = qmInput.value; qmInput.value = b.value; qty = qmPackQty() || qty; qmInput.value = keep; }
             }
-            addItem(qm.item, qty, qm.packId);
+            if (!addItem(qm.item, qty, qm.packId)) { qmInput.value = b && isQty(b.value) ? b.value : qm.initial; updateQtyDialog(); }
             qm.pendingScan = code;
             bootstrap.Modal.getInstance(qtyModalEl).hide();
             return;
@@ -902,7 +965,7 @@
         const qty = qmPackQty();
         if (!(qty > 0)) { beep(false); restart($('.qm-qty'), 'err-shake-box'); setTimeout(() => $('.qm-qty').classList.remove('err-shake-box'), 600); qmInput.focus(); qmInput.select(); return; }
         pickFrom = $('#qmAdd').getBoundingClientRect();
-        addItem(qm.item, qty, qm.packId);
+        if (!addItem(qm.item, qty, qm.packId)) { restart($('.qm-qty'), 'err-shake-box'); setTimeout(() => $('.qm-qty').classList.remove('err-shake-box'), 600); qmInput.focus(); qmInput.select(); return; }
         bootstrap.Modal.getInstance(qtyModalEl).hide();
     }
     $('#qmPacks').addEventListener('click', e => {
@@ -994,10 +1057,10 @@
         activeIdx = 0;
         const wasOpen = results.style.display === 'block' && !results.classList.contains('anim-close');
         if (!items.length) { results.innerHTML = '<div class="p-3 text-muted"><i class="bi bi-search me-1"></i>No matching products</div>'; openResults(); return; }
-        results.innerHTML = items.map((it, i) => `<div class="r ${i === 0 ? 'active' : ''}${wasOpen ? ' fresh' : ''}" style="--i:${i}" data-i="${i}">
+        results.innerHTML = items.map((it, i) => `<div class="r ${i === 0 ? 'active' : ''}${wasOpen ? ' fresh' : ''}${enforceStock(it) && it.stock <= 0 ? ' out' : ''}" style="--i:${i}" data-i="${i}">
             ${it.thumbnail ? `<img src="${it.thumbnail}" width="40" height="40" class="rounded" alt="">` : '<div class="rounded bg-light d-flex align-items-center justify-content-center" style="width:40px;height:40px"><i class="bi bi-box text-muted"></i></div>'}
             <div class="flex-grow-1 min-w-0"><div class="fw-semibold text-truncate">${VM.esc(it.title)}${it.variant ? ' – ' + VM.esc(it.variant) : ''}</div>
-            <div class="fs-sm text-muted">${VM.esc(it.sku || '')} · ${it.track_stock ? VM.qty(it.stock) + ' ' + VM.esc(it.base_unit) + ' in stock' : 'not tracked'}</div></div>
+            <div class="fs-sm text-muted d-flex align-items-center gap-2 flex-wrap"><span>${VM.esc(it.sku || '')}</span>${stockBadge(it)}</div></div>
             <div class="fw-bold">${M(it.price)}</div></div>`).join('');
         openResults();
     }
@@ -1097,11 +1160,11 @@
         $('#grid').innerHTML = Array.from({length: 12}, () => '<div class="tile skel"><div class="ph"></div><div class="t"></div><div class="p"></div></div>').join('');
         try {
             const r = await VM.api(R.browse + '?category=' + cat + customerParam());
-            $('#grid').innerHTML = r.items.map((it, i) => `<button class="tile ${it.track_stock && it.stock <= 0 ? 'out' : ''}" style="--i:${i}" data-i="${i}">
+            $('#grid').innerHTML = r.items.map((it, i) => `<button class="tile ${enforceStock(it) && it.stock <= 0 ? 'out' : ''}" style="--i:${i}" data-i="${i}" title="${it.track_stock ? VM.esc(VM.qty(it.stock) + ' ' + stockUnit(it) + ' in stock') : 'Stock not tracked'}">
                 <div class="ph">${it.thumbnail ? `<img src="${it.thumbnail}" alt="" loading="lazy">` : '<i class="bi bi-box"></i>'}</div>
                 <div class="t">${VM.esc(it.title)}${it.variant ? ' – ' + VM.esc(it.variant) : ''}</div>
                 <div class="p">${M(it.price)}</div>
-                <div class="s">${it.track_stock ? VM.qty(it.stock) + ' ' + VM.esc(it.base_unit) : '&nbsp;'}</div>
+                <div class="s">${it.track_stock ? stockBadge(it, 'left') : '&nbsp;'}</div>
             </button>`).join('') || '<div class="text-muted p-3">No products in this category.</div>';
             restart($('#grid'), 'anim');
             $$('#grid .tile').forEach(t => t.addEventListener('click', () => { const q = qtyMultiplier; qtyMultiplier = null; pickFrom = t.getBoundingClientRect(); pickItem(r.items[t.dataset.i], q); }));
@@ -1118,7 +1181,7 @@
         state.selected = l.uid;
         const act = e.target.closest('[data-act]')?.dataset.act;
         const step = l.item.is_weighted ? 0.1 : 1;
-        if (act === 'inc') { l.qty = round2(Number(l.qty) + step); flash = {uid: l.uid, kind: 'bump'}; }
+        if (act === 'inc') { if (stockRefused(l.item, (Number(l.qty) + step) * Number(packOf(l).qty || 1), l)) return; l.qty = round2(Number(l.qty) + step); flash = {uid: l.uid, kind: 'bump'}; }
         else if (act === 'dec') { l.qty = Math.max(step, round2(Number(l.qty) - step)); flash = {uid: l.uid, kind: 'bump'}; }
         else if (act === 'rm') { removeLine(l, lineEl); return; }
         else if (act === 'disc') { await lineDiscountDialog(l); }
@@ -1129,8 +1192,16 @@
     $('#cart').addEventListener('change', e => {
         const lineEl = e.target.closest('.line'); if (!lineEl) return;
         const l = state.lines.find(x => x.uid === lineEl.dataset.uid); if (!l) return;
-        if (e.target.dataset.act === 'qty') { const v = Number(e.target.value); if (v > 0) l.qty = v; else state.lines = state.lines.filter(x => x !== l); }
-        if (e.target.dataset.act === 'pack') { l.pack_id = e.target.value; l.overridden = false; }
+        if (e.target.dataset.act === 'qty') {
+            const v = Number(e.target.value);
+            if (v > 0 && stockRefused(l.item, v * Number(packOf(l).qty || 1), l)) { e.target.value = l.qty; return; }
+            if (v > 0) l.qty = v; else state.lines = state.lines.filter(x => x !== l);
+        }
+        if (e.target.dataset.act === 'pack') {
+            const np = (l.item.packs || []).find(p => String(p.id) === String(e.target.value)) || {qty: 1};
+            if (stockRefused(l.item, Number(l.qty) * Number(np.qty || 1), l)) { e.target.value = l.pack_id; return; }
+            l.pack_id = e.target.value; l.overridden = false;
+        }
         render();
     });
 
@@ -1371,6 +1442,7 @@
             payModal.hide();
             resetSale();
             searchCache.clear();
+            loadGrid(document.querySelector('#cats button.active')?.dataset.cat || '');
             prepareEmail(saleCustomer);
             $('#dRef').textContent = 'Receipt ' + res.order_id + ' · ' + M(res.total);
             $('#dChange').textContent = M(0);
@@ -1674,7 +1746,7 @@
             if (!l) return;
             e.preventDefault();
             const step = l.item.is_weighted ? 0.1 : 1;
-            if (e.key === '+') l.qty = round2(Number(l.qty) + step);
+            if (e.key === '+') { if (stockRefused(l.item, (Number(l.qty) + step) * Number(packOf(l).qty || 1), l)) return; l.qty = round2(Number(l.qty) + step); }
             if (e.key === '-') l.qty = Math.max(step, round2(Number(l.qty) - step));
             flash = {uid: l.uid, kind: 'bump'};
             if (e.key === 'Delete') { removeLine(l); return; }

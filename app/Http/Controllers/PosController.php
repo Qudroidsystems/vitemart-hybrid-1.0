@@ -62,6 +62,7 @@ class PosController extends Controller
             'requireShift' => (bool) SystemSetting::get('require_open_shift', false),
             'maxDiscount' => (float) ($user->max_discount_percent ?? SystemSetting::get('max_discount_percent', 10)),
             'blockBelowCost' => (bool) SystemSetting::get('block_sale_below_cost', true),
+            'allowNegative' => (bool) SystemSetting::get('allow_negative_stock', false),
             'redeemRate' => (float) config('loyalty.redeem_rate', 100),
             'can' => [
                 'discount' => $user->can('Give pos discount'),
@@ -116,7 +117,15 @@ class PosController extends Controller
     public function lookup(Request $request)
     {
         $customer = $request->filled('customer_id') ? Customer::find($request->customer_id) : null;
+        $this->pos->useTillLocation($this->tillRegisterId($request));
         return response()->json($this->pos->lookup((string) $request->get('q'), $customer));
+    }
+
+    /** The till's register: sent by the page, else the one remembered on this PC. */
+    protected function tillRegisterId(Request $request): ?int
+    {
+        $id = (int) ($request->get('register_id') ?: $request->cookie(\App\Models\CashRegister::COOKIE));
+        return $id > 0 ? $id : null;
     }
 
     /** Old endpoint kept for anything still calling it. */
@@ -150,6 +159,8 @@ class PosController extends Controller
         }
         $products = $q->limit(60)->get();
         app(\App\Services\Catalogue\PriceListResolver::class)->prime($products->pluck('id')->all());
+        $this->pos->useTillLocation($this->tillRegisterId($request));
+        $this->pos->primeStock($products->pluck('id')->all());
         $items = [];
         foreach ($products as $p) {
             if ($p->product_type === 'variable' && $p->variations->isNotEmpty()) {

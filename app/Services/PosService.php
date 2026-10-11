@@ -36,6 +36,64 @@ class PosService
     }
 
     // -----------------------------------------------------------------
+    // Stock the till can actually sell (its own location)
+    // -----------------------------------------------------------------
+
+    protected ?int $stockLocationId = null;
+    /** @var array<string,float> "productId:variationId" and "productId:*" => balance */
+    protected array $stockMemo = [];
+
+    /** Sales from this till deduct from its register's location, so that's the stock to show and check. */
+    public function useTillLocation(?int $registerId): void
+    {
+        $loc = null;
+        if ($registerId) {
+            $loc = \App\Models\CashRegister::here()->find($registerId)?->stock_location_id;
+        }
+        $this->stockLocationId = $loc ?: $this->stock->defaultLocation()->id;
+        $this->stockMemo = [];
+    }
+
+    /** One grouped query for the balances of many products at the till's location. */
+    public function primeStock(array $productIds): void
+    {
+        if ($this->stockLocationId === null) {
+            $this->useTillLocation(null);
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $productIds))));
+        $ids = array_values(array_filter($ids, fn ($id) => !array_key_exists($id . ':*', $this->stockMemo)));
+        if (!$ids) {
+            return;
+        }
+        foreach ($ids as $id) {
+            $this->stockMemo[$id . ':*'] = 0.0;
+        }
+        $rows = DB::table('stocks')
+            ->where('stock_location_id', $this->stockLocationId)
+            ->whereIn('product_id', $ids)
+            ->whereNull('deleted_at')
+            ->groupBy('product_id', 'product_variation_id')
+            ->select('product_id', 'product_variation_id')
+            ->selectRaw(StockService::signedSql() . ' as total')
+            ->get();
+        foreach ($rows as $r) {
+            $total = round((float) $r->total, 3);
+            $this->stockMemo[$r->product_id . ':*'] += $total;
+            if ($r->product_variation_id) {
+                $this->stockMemo[$r->product_id . ':' . $r->product_variation_id] = $total;
+            }
+        }
+    }
+
+    public function sellableStock(Product $product, ?ProductVariation $variation = null): float
+    {
+        $this->primeStock([$product->id]);
+        return $variation
+            ? (float) ($this->stockMemo[$product->id . ':' . $variation->id] ?? 0)
+            : (float) ($this->stockMemo[$product->id . ':*'] ?? 0);
+    }
+
+    // -----------------------------------------------------------------
     // Item lookup
     // -----------------------------------------------------------------
 
@@ -94,6 +152,7 @@ class PosService
             return ['exact' => false, 'items' => []];
         }
         app(\App\Services\Catalogue\PriceListResolver::class)->prime($ids);
+        $this->primeStock($ids);
         $rank = array_flip($ids);
         $products = Product::with(['packs.unit', 'variations' => fn ($v) => $v->where('is_active', true)])
             ->whereIn('id', $ids)
@@ -284,7 +343,7 @@ class PosService
         }
 
         $quote = $this->pricing->quote($product, $variation, $selected, $customer);
-        $stock = $variation ? (float) $variation->stock : (float) $product->stock;
+        $stock = $this->sellableStock($product, $variation);
 
         return [
             'key' => $product->id . ':' . ($variation?->id ?? 0),
