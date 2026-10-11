@@ -122,6 +122,21 @@ class StockService
                     : $product->cost_price;
             }
 
+            // Stock promised to transfers / orders can't be sold.
+            if ($direction === 'out' && $type === 'out' && $product->track_stock !== false && !$allowNegative) {
+                $bal = app(\App\Services\Inventory\InventoryBalances::class);
+                if ($bal->ready() && $bal->sellable($locationId)) {
+                    $branchId = $bal->bucketFor($locationId)['branch_id'];
+                    $reserved = $bal->reservedFor($productId, $variationId, $branchId);
+                    if ($reserved > 0) {
+                        $free = $bal->onHand($productId, $variationId, $branchId) - $reserved;
+                        if ($free + 0.0001 < $qty) {
+                            throw new InsufficientStockException($product->title . ' (some is reserved)', max(0, $free), $qty);
+                        }
+                    }
+                }
+            }
+
             $stock = Stock::create([
                 'product_id' => $productId,
                 'product_variation_id' => $variationId,
@@ -164,6 +179,7 @@ class StockService
                 ]);
             }
 
+            app(\App\Services\Inventory\InventoryBalances::class)->apply($locationId, $productId, $variationId, $direction === 'in' ? $qty : -$qty);
             $this->refreshCache($productId, $variationId);
 
             return $stock;
@@ -191,20 +207,40 @@ class StockService
         });
     }
 
-    /** Re-compute cached balances from the ledger. */
+    /**
+     * Refresh products.stock / product_variations.stock: what this branch can sell
+     * (store + warehouse locations of this server's branch).
+     */
     public function refreshCache(int $productId, ?int $variationId = null): void
     {
-        DB::table('products')->where('id', $productId)->update(['stock' => $this->balance($productId)]);
+        $bal = app(\App\Services\Inventory\InventoryBalances::class);
+        $useBalances = $bal->ready() && \App\Services\MultiBranch\Install::branchId();
+
+        DB::table('products')->where('id', $productId)
+            ->update(['stock' => $useBalances ? $bal->onHand($productId) : $this->balance($productId)]);
 
         if ($variationId && Schema::hasColumn('product_variations', 'stock')) {
             DB::table('product_variations')->where('id', $variationId)
-                ->update(['stock' => $this->balance($productId, $variationId)]);
+                ->update(['stock' => $useBalances ? $bal->onHand($productId, $variationId) : $this->balance($productId, $variationId)]);
         }
     }
 
     /** Rebuild every cached balance – used by the "Sync stock" button / command. */
     public function rebuildAll(): int
     {
+        $bal = app(\App\Services\Inventory\InventoryBalances::class);
+        if ($bal->ready() && \App\Services\MultiBranch\Install::branchId()) {
+            $bal->rebuild();
+            $branchId = \App\Services\MultiBranch\Install::branchId();
+            DB::statement('UPDATE products p LEFT JOIN (SELECT product_id, SUM(on_hand) q FROM inventory_balances WHERE branch_id = ? GROUP BY product_id) b
+                ON b.product_id = p.id SET p.stock = COALESCE(b.q, 0)', [$branchId]);
+            if (Schema::hasColumn('product_variations', 'stock')) {
+                DB::statement('UPDATE product_variations v LEFT JOIN inventory_balances b ON b.variation_key = v.id AND b.product_id = v.product_id AND b.branch_id = ?
+                    SET v.stock = COALESCE(b.on_hand, 0)', [$branchId]);
+            }
+            return (int) DB::table('products')->count();
+        }
+
         $count = 0;
         Product::query()->select('id')->chunkById(500, function ($products) use (&$count) {
             foreach ($products as $p) {

@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 class Product extends Model
 {
     use HasUid;
+    use \App\Traits\IndexesBarcodes;
     use Auditable;
 
     protected string $auditModule = 'products';

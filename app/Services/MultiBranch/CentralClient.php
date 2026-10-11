@@ -25,15 +25,27 @@ class CentralClient
         return $url;
     }
 
+    protected bool $quick = false;
+
+    /** Short timeouts for calls made while a person waits (they fall back to the background retry). */
+    public function quick(bool $on = true): static
+    {
+        $this->quick = $on;
+        return $this;
+    }
+
     public function send(string $method, string $path, array $data = [], int $timeout = 30): Response
     {
+        if ($this->quick) {
+            $timeout = min($timeout, 5);
+        }
         $method = strtoupper($method);
         $path = '/' . ltrim($path, '/');
         $body = $method === 'GET' ? '' : json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $ts = time();
         $signPath = parse_url($path, PHP_URL_PATH);
 
-        $req = Http::timeout($timeout)->connectTimeout(10)->acceptJson()->withHeaders([
+        $req = Http::timeout($timeout)->connectTimeout($this->quick ? 2 : 10)->acceptJson()->withHeaders([
             'Authorization' => 'Bearer ' . $this->install->token,
             'X-Installation' => $this->install->remote_installation_uid,
             'X-Timestamp' => (string) $ts,
@@ -49,8 +61,8 @@ class CentralClient
 
     public function get(string $path, array $query = []): Response
     {
-        $qs = $query ? ('?' . http_build_query($query)) : '';
-        return $this->send('GET', $path . $qs);
+        // (query goes in as data: Guzzle would otherwise replace a query string written into the URL)
+        return $this->send('GET', $path, $query);
     }
 
     public function post(string $path, array $data = []): Response

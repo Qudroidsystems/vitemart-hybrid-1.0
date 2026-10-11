@@ -356,7 +356,7 @@ use Spatie\Permission\Models\Role;
         </div>
     </div>
     <!-- End Page-content -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
     <!-- Scripts -->
     {{-- <script src="{{ asset('theme/layouts/assets/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('theme/layouts/assets/js/list.min.js') }}"></script>

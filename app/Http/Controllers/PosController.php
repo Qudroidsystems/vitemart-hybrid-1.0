@@ -41,8 +41,24 @@ class PosController extends Controller
         $categories = Category::whereHas('products', fn ($q) => $q->where('is_active', true))
             ->orderBy('name')->get(['id', 'name']);
 
+        // Which till is this browser?  (remembered in a cookie on the till PC)
+        $registers = \App\Models\CashRegister::here()->where('status', 'active')->orderBy('code')->get();
+        $openShifts = PosShift::whereIn('cash_register_id', $registers->pluck('id'))->where('status', 'open')
+            ->with('user:id,first_name,last_name')->get()->keyBy('cash_register_id');
+        $register = $registers->firstWhere('id', (int) $request->cookie(\App\Models\CashRegister::COOKIE))
+            ?? ($shift?->cash_register_id ? $registers->firstWhere('id', $shift->cash_register_id) : null)
+            ?? ($registers->count() === 1 ? $registers->first() : null);
+
         $config = [
             'currency' => currency_symbol(),
+            'register' => $register ? ['id' => $register->id, 'code' => $register->code, 'name' => $register->name] : null,
+            'registers' => $registers->map(fn ($r) => [
+                'id' => $r->id, 'code' => $r->code, 'name' => $r->name,
+                'busy' => isset($openShifts[$r->id]) && $openShifts[$r->id]->user_id !== $user->id
+                    ? trim(($openShifts[$r->id]->user->first_name ?? '') . ' ' . ($openShifts[$r->id]->user->last_name ?? '')) : null,
+            ])->values(),
+            'transferNeedsConfirmation' => (bool) SystemSetting::get('transfer_needs_confirmation', true),
+            'cardNeedsRef' => (bool) SystemSetting::get('card_needs_terminal_ref', false),
             'requireShift' => (bool) SystemSetting::get('require_open_shift', false),
             'maxDiscount' => (float) ($user->max_discount_percent ?? SystemSetting::get('max_discount_percent', 10)),
             'blockBelowCost' => (bool) SystemSetting::get('block_sale_below_cost', true),
@@ -54,6 +70,7 @@ class PosController extends Controller
                 'return' => $user->can('Process pos return'),
                 'shifts' => $user->can('Manage pos shifts') || $user->can('View pos'),
                 'below_cost' => $user->can('Sell below cost'),
+                'confirm_payments' => $user->can('Confirm payments'),
             ],
             'user' => ['id' => $user->id, 'name' => trim($user->first_name . ' ' . $user->last_name)],
             'store' => ['name' => $store->store_name ?? config('app.name')],
@@ -77,10 +94,21 @@ class PosController extends Controller
                 'transactions' => route('pos.transactions'),
                 'dashboard' => route('dashboard'),
                 'logout' => route('logout'),
+                'register' => route('pos.register.pick'),
             ],
         ];
 
         return view('pos.terminal', compact('pagetitle', 'store', 'shift', 'categories', 'config'));
+    }
+
+    /** Remember which till this browser is (cookie on the till PC). */
+    public function pickRegister(Request $request)
+    {
+        $data = $request->validate(['register_id' => 'required|integer']);
+        $register = \App\Models\CashRegister::here()->where('status', 'active')->findOrFail($data['register_id']);
+        $register->forceFill(['last_used_at' => now(), 'last_user_id' => $request->user()->id])->saveQuietly();
+        return response()->json(['success' => true, 'register' => $register->only(['id', 'code', 'name'])])
+            ->cookie(\App\Models\CashRegister::COOKIE, (string) $register->id, 60 * 24 * 365 * 5);
     }
 
     /** Search box / barcode scanner */
@@ -178,6 +206,8 @@ class PosController extends Controller
             'payments.*.method' => 'required|in:cash,card,transfer,credit',
             'payments.*.amount' => 'required|numeric|min:0',
             'payments.*.reference' => 'nullable|string|max:100',
+            'payments.*.confirmed' => 'nullable|boolean',
+            'register_id' => 'nullable|integer',
             'redeem_points' => 'nullable|integer|min:0',
             'note' => 'nullable|string|max:500',
             'held_sale_id' => 'nullable|integer',
@@ -205,6 +235,7 @@ class PosController extends Controller
             'total' => (float) $order->total_amount,
             'paid' => (float) $order->amount_paid,
             'change' => (float) $order->change_due,
+            'pending_payments' => (float) \App\Models\OrderPayment::where('order_id', $order->id)->where('status', 'pending')->sum('amount'),
             'receipt_url' => route('pos.receipt', $order->id),
         ]);
     }

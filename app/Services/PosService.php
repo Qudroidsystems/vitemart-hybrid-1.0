@@ -266,6 +266,14 @@ class PosService
             throw ValidationException::withMessages(['shift' => 'Open a shift (cash drawer) before selling.']);
         }
 
+        // Which till: the one the shift was opened on, else the one this browser is set to.
+        $register = null;
+        if (\Illuminate\Support\Facades\Schema::hasTable('cash_registers')) {
+            $rid = $shift?->cash_register_id ?: ($data['register_id'] ?? null);
+            $register = $rid ? \App\Models\CashRegister::here()->where('status', 'active')->find($rid) : null;
+        }
+        $data['__register'] = $register;
+
         $customer = !empty($data['customer_id']) ? Customer::find($data['customer_id']) : null;
         $token = $data['auth_token'] ?? null;
         $maxDiscount = (float) ($user->max_discount_percent ?? SystemSetting::get('max_discount_percent', 10));
@@ -394,8 +402,22 @@ class PosService
                 }
             }
 
-            // ---- stock (locks each product row)
-            $location = $this->stock->defaultLocation();
+            // ---- payment checks that depend on settings
+            $needsConfirm = (bool) SystemSetting::get('transfer_needs_confirmation', true);
+            $canConfirm = $user->can('Confirm payments');
+            if (SystemSetting::get('card_needs_terminal_ref', false)
+                && $payments->contains(fn ($p) => $p['method'] === 'card' && trim((string) ($p['reference'] ?? '')) === '')) {
+                throw ValidationException::withMessages(['payments' => 'Enter the card terminal reference (from the POS slip).']);
+            }
+            $payments = $payments->map(function ($p) use ($needsConfirm, $canConfirm) {
+                $p['status'] = ($p['method'] === 'transfer' && $needsConfirm && !(!empty($p['confirmed']) && $canConfirm)) ? 'pending' : 'confirmed';
+                return $p;
+            });
+            $pendingAmount = (float) $payments->where('status', 'pending')->sum('amount');
+
+            // ---- stock (locks each product row); the till's own location if it has one
+            $register = $data['__register'] ?? null;
+            $location = $register?->location ?? $this->stock->defaultLocation();
             foreach ($lines as $l) {
                 if ($l['product']->track_stock === false) {
                     continue;
@@ -423,7 +445,7 @@ class PosService
                 'total_amount' => $total,
                 'order_date' => now(),
                 'payment_method' => $methods->count() > 1 ? 'split' : $methods->first(),
-                'payment_status' => $credit > 0 && $credit >= $total ? 'unpaid' : ($credit > 0 ? 'partial' : 'paid'),
+                'payment_status' => $credit > 0 && $credit >= $total ? 'unpaid' : ($credit > 0 ? 'partial' : ($pendingAmount > 0 ? 'pending' : 'paid')),
                 'paid_at' => now(),
             ]);
             $order->forceFill([
@@ -435,6 +457,7 @@ class PosService
                 'change_due' => $change,
                 'cost_total' => round($costTotal, 2),
                 'pos_shift_id' => $shift?->id,
+                'cash_register_id' => $register?->id,
                 'channel' => 'pos',
                 'notes' => $data['note'] ?? null,
             ])->save();
@@ -480,6 +503,10 @@ class PosService
                     'reference' => $p['reference'] ?? null,
                     'pos_shift_id' => $shift?->id,
                     'user_id' => $user->id,
+                    'status' => $p['status'],
+                    'confirmed_by' => $p['status'] === 'confirmed' && $p['method'] === 'transfer' ? $user->id : null,
+                    'confirmed_at' => $p['status'] === 'confirmed' ? now() : null,
+                    'cash_register_id' => $register?->id,
                 ]);
             }
 

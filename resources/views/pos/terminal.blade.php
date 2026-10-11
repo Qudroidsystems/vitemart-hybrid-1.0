@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>POS · {{ $store->store_name ?? 'Supermarket' }}</title>
     @if ($store?->logo)<link rel="icon" href="{{ $store->getLogoUrlAttribute() }}">@endif
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ asset('vendor/fonts/fonts.css') }}" rel="stylesheet">
     <link href="{{ asset('theme/layouts/assets/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ asset('theme/layouts/assets/css/icons.min.css') }}" rel="stylesheet">
     <link href="{{ asset('theme/layouts/assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
@@ -130,6 +130,9 @@
     <div class="pos-top">
         <span class="brand"><i class="bi bi-shop me-1"></i>{{ $store->store_name ?? 'Supermarket' }}</span>
         <span class="chip hide-md"><i class="bi bi-person me-1"></i>{{ $config['user']['name'] }}</span>
+        @if (count($config['registers']))
+            <span class="chip" id="regChip" style="cursor:pointer" title="Which till is this?"><i class="bi bi-display me-1"></i>{{ $config['register'] ? 'Till ' . $config['register']['code'] : 'Choose till' }}</span>
+        @endif
         <span class="chip" id="shiftChip">…</span>
         <span class="chip warn offline"><i class="bi bi-wifi-off me-1"></i>Offline</span>
         <span class="flex-grow-1"></span>
@@ -242,6 +245,16 @@
                             <input type="number" step="0.01" min="0" class="form-control" id="tender" placeholder="0.00">
                         </div>
                         <input type="text" class="form-control form-control-sm mb-2" id="payRef" placeholder="Reference (card slip / transfer ID)" style="display:none">
+                        @if ($config['transferNeedsConfirmation'])
+                            <div class="form-check mb-2 fs-sm" id="payConfirmedBox" style="display:none">
+                                @if ($config['can']['confirm_payments'])
+                                    <input class="form-check-input" type="checkbox" id="payConfirmed">
+                                    <label class="form-check-label" for="payConfirmed">I have seen this money in the bank account</label>
+                                @else
+                                    <span class="text-muted"><i class="bi bi-hourglass-split me-1"></i>A supervisor confirms transfers after checking the bank.</span>
+                                @endif
+                            </div>
+                        @endif
                         <div class="quick mb-2" id="quick"></div>
                         <div class="keypad mb-2" id="keypad">
                             @foreach ([7,8,9,4,5,6,1,2,3,'00',0,'⌫'] as $k)<button type="button" data-k="{{ $k }}">{{ $k }}</button>@endforeach
@@ -332,6 +345,12 @@
 <script src="{{ asset('theme/layouts/assets/libs/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ asset('theme/layouts/assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
 @include('layouts.partials.vm-helpers')
+<script>
+    // Keep the till's files on this PC (works without internet; see /pos-sw.js).
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
+        navigator.serviceWorker.register('{{ asset('pos-sw.js') }}', {scope: '{{ url('/pos') }}'}).catch(() => {});
+    }
+</script>
 <script>
 (function () {
     'use strict';
@@ -751,6 +770,7 @@
             .filter((v, i, a) => v >= due && a.indexOf(v) === i).slice(0, 6);
         $('#quick').innerHTML = method === 'cash' ? notes.map((v, i) => `<button type="button" data-v="${v}">${i === 0 ? 'Exact' : M(v, 0)}</button>`).join('') : '';
         $('#payRef').style.display = method === 'cash' ? 'none' : '';
+        if ($('#payConfirmedBox')) $('#payConfirmedBox').style.display = method === 'transfer' ? '' : 'none';
     }
     $('#pList').addEventListener('click', e => { const i = e.target.closest('[data-rm]')?.dataset.rm; if (i !== undefined) { e.preventDefault(); payments.splice(i, 1); updatePay(true); } });
     $('#quick').addEventListener('click', e => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { $('#tender').value = Number(v).toFixed(2); updatePay(); } });
@@ -773,8 +793,9 @@
         const amt = Number($('#tender').value || 0);
         if (amt <= 0) return;
         if (method !== 'cash' && amt > remaining() + 0.004) { VM.toast('Card/transfer cannot be more than what is left to pay', 'warning'); return; }
-        payments.push({method, amount: round2(amt), reference: $('#payRef').value || null});
+        payments.push({method, amount: round2(amt), reference: $('#payRef').value || null, confirmed: method === 'transfer' && !!$('#payConfirmed')?.checked});
         $('#payRef').value = '';
+        if ($('#payConfirmed')) $('#payConfirmed').checked = false;
         updatePay(true);
     });
 
@@ -785,7 +806,8 @@
         if (btn.disabled) return;
         const tender = Number($('#tender').value || 0);
         const pays = payments.slice();
-        if (tender > 0) pays.push({method, amount: round2(tender), reference: $('#payRef').value || null});
+        if (tender > 0) pays.push({method, amount: round2(tender), reference: $('#payRef').value || null, confirmed: method === 'transfer' && !!$('#payConfirmed')?.checked});
+        if (CFG.cardNeedsRef && pays.some(p => p.method === 'card' && !p.reference)) { VM.toast('Enter the card terminal reference from the slip', 'warning'); $('#payRef').focus(); return; }
         const paid = pays.reduce((a, p) => a + p.amount, 0);
         if (paid + 0.004 < totals().total) { VM.toast('Payment is short by ' + M(totals().total - paid), 'warning'); return; }
 
@@ -804,6 +826,7 @@
             held_sale_id: state.heldId,
             auth_token: authToken,
             client_ref: clientRef,
+            register_id: CFG.register?.id || null,
         };
         btn.disabled = true; $('.spinner-border', btn).classList.remove('d-none');
         try {
@@ -814,6 +837,7 @@
             resetSale();
             $('#dRef').textContent = 'Receipt ' + res.order_id + ' · ' + M(res.total);
             $('#dChange').textContent = M(res.change);
+            if (res.pending_payments > 0) VM.toast('Transfer of ' + M(res.pending_payments) + ' is waiting for a supervisor to confirm', 'info');
             bootstrap.Modal.getOrCreateInstance('#doneModal').show();
             refreshShift();
         } catch (e) {
@@ -950,7 +974,8 @@
         if (shift) { VM.toast('Your shift is already open', 'info'); return; }
         const r = await Swal.fire({title: 'Open shift', input: 'number', inputLabel: 'Opening cash float in the drawer', inputValue: 0, showCancelButton: true, confirmButtonText: 'Open shift'});
         if (!r.isConfirmed) return;
-        try { await VM.api(R.shiftOpen, {method: 'POST', body: {opening_float: Number(r.value || 0)}}); VM.toast('Shift opened'); refreshShift(); }
+        if (CFG.registers.length > 1 && !CFG.register) { VM.toast('First choose which till this is', 'warning'); return pickRegister(); }
+        try { await VM.api(R.shiftOpen, {method: 'POST', body: {opening_float: Number(r.value || 0), cash_register_id: CFG.register?.id || null}}); VM.toast('Shift opened'); refreshShift(); }
         catch (e) { VM.error(e); }
     }
     async function cashMove(type) {
@@ -963,6 +988,18 @@
     }
     $('#mCashIn').addEventListener('click', e => { e.preventDefault(); cashMove('in'); });
     $('#mCashOut').addEventListener('click', e => { e.preventDefault(); cashMove('out'); });
+    async function pickRegister() {
+        if (!CFG.registers.length) return;
+        if (shift) { VM.toast('Close your shift before switching tills', 'warning'); return; }
+        const opts = {};
+        CFG.registers.forEach(r => { opts[r.id] = `${r.code} – ${r.name}${r.busy ? ' (open: ' + r.busy + ')' : ''}`; });
+        const r = await Swal.fire({title: 'Which till is this?', input: 'select', inputOptions: opts, inputValue: CFG.register?.id || '',
+            text: 'This computer remembers it.', showCancelButton: true, confirmButtonText: 'Use this till'});
+        if (!r.isConfirmed || !r.value) return;
+        try { await VM.api(R.register, {method: 'POST', body: {register_id: Number(r.value)}}); location.reload(); } catch (e) { VM.error(e); }
+    }
+    $('#regChip')?.addEventListener('click', pickRegister);
+
     async function shiftSummary() {
         await refreshShift(); if (!shift) return;
         const methods = Object.entries(shift.by_method || {}).map(([m, v]) => `<tr><td class="text-capitalize">${m}</td><td class="text-end">${M(v.total)}</td></tr>`).join('');

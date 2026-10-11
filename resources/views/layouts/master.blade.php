@@ -34,10 +34,8 @@
 </head>
 
     <!-- Fonts css load -->
-    <link rel="preconnect" href="https://fonts.googleapis.com/">
-    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
-    <link id="fontsLink" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" rel="stylesheet">
+    <link id="fontsLink" href="{{ asset('vendor/fonts/fonts.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/choices/choices.min.css') }}" rel="stylesheet">
     <link href="{{ asset('theme/layouts/assets/fonts/materialdesignicons-webfont.woff2') }}?v=6.5.95" rel="stylesheet" type="font/woff2">
     <style>
         .pagination-wrap .page-item { margin: 0 5px; }
@@ -45,7 +43,7 @@
         .pagination-wrap .active .page-link { background-color: #007bff; color: white; }
         .pagination-wrap .disabled .page-link { pointer-events: none; opacity: 0.5; }
     </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}">
 
     <!-- CSS includes for different routes -->
     @if (Route::is('dashboard'))
@@ -84,7 +82,7 @@
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
-    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*'))
+    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
@@ -350,6 +348,13 @@
                                         @canany(['View all pos shifts', 'Manage pos shifts'])
                                             <li class="nav-item"><a href="{{ route('pos.shifts.index') }}" class="nav-link"> Cash Drawer Shifts </a></li>
                                         @endcanany
+                                        @can('Confirm payments')
+                                            @php $__pendPay = \Illuminate\Support\Facades\Schema::hasColumn('order_payments', 'status') ? \App\Models\OrderPayment::where('status', 'pending')->count() : 0; @endphp
+                                            <li class="nav-item"><a href="{{ route('pos.payments.index') }}" class="nav-link"> Payments to confirm @if ($__pendPay)<span class="badge bg-warning ms-1">{{ $__pendPay }}</span>@endif</a></li>
+                                        @endcan
+                                        @can('Manage cash registers')
+                                            <li class="nav-item"><a href="{{ route('pos.registers.index') }}" class="nav-link"> Tills </a></li>
+                                        @endcan
                                     </ul>
                                 </div>
                             </li>
@@ -479,7 +484,44 @@
                                     <span class="badge bg-{{ $__mode === 'central' ? 'primary' : ($__mode === 'branch' ? 'info' : 'secondary') }} ms-auto">{{ $__mode === 'central' ? 'HQ' : ($__mode === 'branch' ? \App\Services\MultiBranch\Install::branchCode() : 'single') }}</span>
                                 </a>
                             </li>
+                            @if ($__mode !== 'standalone')
+                                @canany(['View sync status', 'Manage sync'])
+                                    @php
+                                        $__syncWarn = $__mode === 'branch' && \Illuminate\Support\Facades\Schema::hasTable('sync_outbox')
+                                            ? \Illuminate\Support\Facades\DB::table('sync_outbox')->where(fn ($q) => $q->where('status', 'dead')->orWhere('attempts', '>', 0))->where('status', '!=', 'sent')->count() : 0;
+                                    @endphp
+                                    <li class="nav-item">
+                                        <a class="nav-link menu-link" href="{{ route('mb.sync.index') }}">
+                                            <i class="ph-arrows-clockwise"></i> <span>Sync</span>
+                                            @if ($__syncWarn)<span class="badge bg-danger ms-auto">{{ $__syncWarn }}</span>@endif
+                                        </a>
+                                    </li>
+                                @endcanany
+                            @endif
                         @endcanany
+                        @if (!\App\Services\MultiBranch\Install::isStandalone())
+                            @canany(['Approve price change', 'Approve product submission', 'Request price change', 'Manage price lists', 'Manage price control', 'View price history', 'Manage field policies'])
+                                @php
+                                    $__reqCount = \Illuminate\Support\Facades\Schema::hasTable('price_change_requests')
+                                        ? \App\Models\PriceChangeRequest::where('status', 'pending')->count() + \App\Models\ProductSubmission::where('status', 'pending')->count() : 0;
+                                @endphp
+                                <li class="nav-item">
+                                    <a class="nav-link menu-link" href="#sidebarCatalogueMb" data-bs-toggle="collapse" role="button" aria-expanded="{{ request()->routeIs('catalogue.*') ? 'true' : 'false' }}">
+                                        <i class="ph-books"></i> <span>Catalogue</span>
+                                        @if ($__reqCount)<span class="badge bg-warning ms-auto">{{ $__reqCount }}</span>@endif
+                                    </a>
+                                    <div class="collapse menu-dropdown {{ request()->routeIs('catalogue.*') ? 'show' : '' }}" id="sidebarCatalogueMb">
+                                        <ul class="nav nav-sm flex-column">
+                                            <li class="nav-item"><a href="{{ route('catalogue.requests') }}" class="nav-link">{{ \App\Services\MultiBranch\Install::isCentral() ? 'Requests from branches' : 'Requests to head office' }}</a></li>
+                                            @canany(['Manage price lists', 'Manage price control', 'View price history', 'Manage field policies'])
+                                                <li class="nav-item"><a href="{{ route('catalogue.price-lists') }}" class="nav-link">Branch prices</a></li>
+                                                <li class="nav-item"><a href="{{ route('catalogue.policies') }}" class="nav-link">What branches may change</a></li>
+                                            @endcanany
+                                        </ul>
+                                    </div>
+                                </li>
+                            @endcanany
+                        @endif
                         @canany(['Manage login control', 'View active sessions', 'Force logout users', 'View audit trail'])
                             <li class="menu-title"><span data-key="t-menu">Security</span></li>
                             @canany(['Manage login control', 'View active sessions', 'Force logout users'])
@@ -1468,7 +1510,7 @@
     </div>
 
 
-      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*'))
+      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
             @include('layouts.pages-assets.js.common-js')
       @endif
 
@@ -1502,7 +1544,7 @@
 
 
 
-      @if (Route::is('pos.*') && !Route::is('pos.transactions*') && !Route::is('pos.shifts.*'))
+      @if (Route::is('pos.*') && !Route::is('pos.transactions*') && !Route::is('pos.shifts.*') && !Route::is('pos.payments.*') && !Route::is('pos.registers.*'))
             @include('layouts.pages-assets.js.pos-list-js')
       @endif
 

@@ -605,8 +605,8 @@
 </div>
 
 
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('vendor/axios/axios.min.js') }}"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 @if($products->count() > 0)
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>

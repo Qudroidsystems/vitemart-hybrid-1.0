@@ -132,6 +132,7 @@ class BranchController extends Controller
             return back()->with('error', "{$user->first_name}'s home branch is {$branch->code}; move them to another home branch instead.");
         }
         \App\Services\AuditLogger::log('updated', "Branch access for {$user->first_name}: {$data['action']} {$branch->code}", 'security', $user);
+        \App\Services\Sync\Feed::mark('user', $user->uid);
         return back()->with('success', 'Access updated.');
     }
 }

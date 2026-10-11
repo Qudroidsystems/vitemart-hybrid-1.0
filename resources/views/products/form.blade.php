@@ -4,6 +4,10 @@
 @php
     $p = $payload;
     $isEdit = $product !== null;
+    $mbBranch = \App\Services\MultiBranch\Install::isBranch();
+    $governed = \App\Services\Catalogue\CatalogueRequests::governed($product);
+    $policy = \App\Services\Catalogue\CatalogueRequests::policyFor($product);
+    $pendingRequests = $isEdit && $mbBranch ? \App\Models\PriceChangeRequest::where('product_id', $product->id)->where('status', 'pending')->get() : collect();
 @endphp
 <div class="main-content">
 <div class="page-content">
@@ -11,7 +15,13 @@
 
     <div class="page-title-box d-sm-flex align-items-center justify-content-between">
         <div>
-            <h4 class="mb-sm-0">{{ $isEdit ? 'Edit product' : 'Add product' }}</h4>
+            <h4 class="mb-sm-0">{{ $isEdit ? 'Edit product' : 'Add product' }}
+                @if ($isEdit && ($product->owner ?? null) === 'central' && !\App\Services\MultiBranch\Install::isStandalone())
+                    <span class="badge bg-primary-subtle text-primary fs-xs align-middle"><i class="bi bi-building me-1"></i>Head-office catalogue</span>
+                @elseif ($isEdit && $mbBranch)
+                    <span class="badge bg-warning-subtle text-warning fs-xs align-middle"><i class="bi bi-shop me-1"></i>Only at this branch{{ ($product->central_status ?? '') === 'submitted' ? ' · sent to head office' : '' }}</span>
+                @endif
+            </h4>
             <p class="text-muted mb-0 mt-1 fs-sm">
                 @if ($isEdit)
                     {{ $product->title }} · current stock <strong>{{ qty($product->stock) }}</strong>
@@ -24,9 +34,37 @@
             <a href="{{ route('products.index') }}" class="btn btn-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to products</a>
             @if ($isEdit)
                 <a href="{{ route('products.labels', ['ids' => $product->id, 'include_packs' => 1]) }}" target="_blank" class="btn btn-light btn-sm"><i class="bi bi-upc me-1"></i>Print labels</a>
+                @if ($mbBranch && ($product->owner ?? 'branch') !== 'central' && ($product->central_status ?? 'local') === 'local')
+                    @can('Submit product to head office')
+                        <button type="button" class="btn btn-soft-primary btn-sm" id="submitToHq"><i class="bi bi-send me-1"></i>Offer to head office</button>
+                    @endcan
+                @endif
             @endif
         </div>
     </div>
+
+    @if ($governed)
+        <div class="alert alert-primary d-flex gap-3 align-items-start">
+            <i class="bi bi-building fs-4"></i>
+            <div class="flex-grow-1">
+                <strong>Head office manages this product.</strong>
+                You can change <em>Active</em> and <em>Reorder level</em> for this branch.
+                Price changes are sent to head office for approval; the till keeps the current price until they approve it.
+                <div class="mt-2" style="max-width:520px">
+                    <input type="text" form="productForm" name="change_reason" class="form-control form-control-sm" maxlength="255"
+                           placeholder="Reason for a price change (e.g. competitor across the road sells at ₦450)">
+                </div>
+                @if ($pendingRequests->isNotEmpty())
+                    <div class="mt-2 fs-sm">
+                        <i class="bi bi-hourglass-split me-1"></i>Waiting for head office:
+                        @foreach ($pendingRequests as $r)
+                            <span class="badge bg-warning-subtle text-warning">{{ \Illuminate\Support\Str::after($r->item_label, $product->title) ?: 'Item' }} {{ \App\Models\PriceChangeRequest::FIELDS[$r->field] ?? $r->field }} → {{ money($r->requested_value) }}</span>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
 
     <form id="productForm" enctype="multipart/form-data" novalidate>
         <div class="row g-3">
@@ -362,6 +400,69 @@
             </button>
         </div>
     </form>
+
+    @if ($isEdit)
+        <div class="card mt-3" id="extraBarcodes">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0"><i class="bi bi-upc-scan me-1"></i>Other barcodes for this item</h6>
+                <span class="text-muted fs-xs">New packaging, a second supplier's code, an old code… all ring up this item.</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fs-sm">Barcode</label>
+                        <input type="text" class="form-control vm-mono" id="xbCode" maxlength="64" placeholder="Scan it here">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fs-sm">Rings up</label>
+                        <select class="form-select" id="xbTarget">
+                            <option value="">{{ $product->title }} (single)</option>
+                            @foreach ($product->packs->where('is_base', false) as $pk)
+                                <option value="pack:{{ $pk->id }}">{{ $pk->unit->name ?? 'Pack' }} of {{ qty($pk->quantity_per_unit) }}</option>
+                            @endforeach
+                            @foreach ($product->variations as $vv)
+                                <option value="variation:{{ $vv->id }}">{{ $vv->label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fs-sm">Note</label>
+                        <input type="text" class="form-control" id="xbNote" maxlength="120" placeholder="optional">
+                    </div>
+                    <div class="col-md-2"><button type="button" class="btn btn-primary w-100" id="xbAdd">Add</button></div>
+                </div>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Barcode</th><th>Rings up</th><th>Type</th><th>Note</th><th></th></tr></thead>
+                    <tbody id="xbBody"><tr><td colspan="5" class="text-muted text-center">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    @if ($isEdit && \App\Services\MultiBranch\Install::isCentral() && ($product->owner ?? '') === 'central')
+        @can('Distribute products')
+            @php
+                $distBranches = \App\Models\Branch::where('type', 'store')->orderBy('number')->get(['id', 'code', 'name']);
+                $distSel = \Illuminate\Support\Facades\DB::table('product_distributions')->where('product_id', $product->id)->pluck('branch_id')->all();
+                $distMode = $product->distribution ?? 'all';
+            @endphp
+            <div class="card mt-3" id="distCard">
+                <div class="card-header"><h6 class="card-title mb-0"><i class="bi bi-diagram-3 me-1"></i>Which branches sell this</h6></div>
+                <div class="card-body">
+                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dist_mode" id="distAll" value="all" @checked($distMode === 'all')><label class="form-check-label" for="distAll">All branches</label></div>
+                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dist_mode" id="distSel" value="selected" @checked($distMode === 'selected')><label class="form-check-label" for="distSel">Only these:</label></div>
+                    <div class="d-flex flex-wrap gap-3 mt-2" id="distList">
+                        @foreach ($distBranches as $b)
+                            <div class="form-check"><input class="form-check-input dist-b" type="checkbox" value="{{ $b->id }}" id="db{{ $b->id }}" @checked(in_array($b->id, $distSel))>
+                                <label class="form-check-label" for="db{{ $b->id }}">{{ $b->code }} – {{ $b->name }}</label></div>
+                        @endforeach
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary mt-3" id="distSave">Save</button>
+                    <span class="text-muted fs-sm ms-2">Branches not selected stop selling it (their history stays).</span>
+                </div>
+            </div>
+        @endcan
+    @endif
 </div>
 </div>
 </div>
@@ -672,7 +773,7 @@
 
         const fd = new FormData();
         const plain = ['title', 'sku', 'barcode', 'plu_code', 'category_id', 'brand_id', 'description', 'cost_price', 'price', 'sale_price',
-            'wholesale_price', 'promo_price', 'promo_starts_at', 'promo_ends_at', 'base_unit_id', 'reorder_level', 'opening_stock', 'opening_location_id'];
+            'wholesale_price', 'promo_price', 'promo_starts_at', 'promo_ends_at', 'base_unit_id', 'reorder_level', 'opening_stock', 'opening_location_id', 'change_reason'];
         plain.forEach(n => { const el = form.elements[n]; if (el && el.value !== '') fd.append(n, el.value); });
         fd.append('product_type', form.querySelector('input[name=product_type]:checked').value);
         ['is_active', 'track_stock', 'allow_price_override', 'is_featured', 'is_weighted'].forEach(n => fd.append(n, form.elements[n].checked ? 1 : 0));
@@ -724,4 +825,84 @@
     });
 })();
 </script>
+@if ($isEdit)
+<script>
+(() => {
+    const productId = {{ $product->id }};
+    const governed = {{ $governed ? 'true' : 'false' }};
+    const policy = @json($policy);
+
+    // ---- Head-office product at a branch: only the fields the policy allows stay editable.
+    if (governed) {
+        const form = document.getElementById('productForm');
+        const editable = new Set(['is_active', 'reorder_level']);
+        ['price', 'wholesale_price', 'promo_price'].forEach(f => { if (policy[f] === 'request') editable.add(f); });
+        if (policy.promo_price === 'request') { editable.add('promo_starts_at'); editable.add('promo_ends_at'); }
+        const lockAll = () => {
+            form.querySelectorAll('input, select, textarea, button').forEach(el => {
+                if (el.id === 'saveBtn' || el.type === 'submit' || el.closest('.vm-sticky-actions')) return;
+                const f = el.name || el.dataset.f;
+                const inVarOrPack = el.closest('tr') && el.dataset.f === 'price';
+                const allowPack = inVarOrPack && ((el.closest('#packTable') && policy.pack_price === 'request') || (el.closest('#varTable') && policy.price === 'request'));
+                if (editable.has(f) && !el.closest('tr')) return;
+                if (allowPack) return;
+                if (el.tagName === 'BUTTON') { el.disabled = true; el.classList.add('d-none'); return; }
+                el.disabled = true;
+            });
+            form.querySelectorAll('[data-f=price]').forEach(el => { if (!el.disabled) el.title = 'Change sends a request to head office'; });
+        };
+        lockAll();
+        setTimeout(lockAll, 300); // rows added by the page script after load
+    }
+
+    // ---- Distribution (head office)
+    document.getElementById('distSave')?.addEventListener('click', async () => {
+        const mode = document.querySelector('input[name=dist_mode]:checked').value;
+        const branches = [...document.querySelectorAll('.dist-b:checked')].map(x => Number(x.value));
+        if (mode === 'selected' && !branches.length) { VM.toast('Tick at least one branch', 'warning'); return; }
+        try { const r = await VM.api(`/products/${productId}/distribution`, {method: 'POST', body: {mode, branches}}); VM.toast(r.message); } catch (e) { VM.error(e); }
+    });
+
+    // ---- Offer a local product to head office
+    document.getElementById('submitToHq')?.addEventListener('click', async () => {
+        const note = await VM.prompt('Offer this product to head office?', 'Head office reviews it and, if approved, it joins the catalogue for every branch. Add a note (optional).', false);
+        if (note === null) return;
+        try {
+            const res = await VM.api(`/products/${productId}/submit-to-hq`, {method: 'POST', body: {note: typeof note === 'string' ? note : ''}});
+            VM.toast(res.message, 'success');
+            setTimeout(() => location.reload(), 900);
+        } catch (e) { VM.error(e); }
+    });
+
+    // ---- Extra barcodes
+    const body = document.getElementById('xbBody');
+    const load = async () => {
+        const res = await VM.api(`/products/${productId}/barcodes`);
+        body.innerHTML = res.barcodes.length ? res.barcodes.map(b => `<tr>
+            <td class="vm-mono">${VM.esc(b.barcode)}</td><td>${VM.esc(b.target)}</td>
+            <td>${b.kind === 'primary' ? '<span class="badge bg-light text-dark">main</span>' : '<span class="badge bg-info-subtle text-info">extra</span>'}</td>
+            <td class="fs-sm text-muted">${VM.esc(b.note || '')}</td>
+            <td class="text-end">${b.kind === 'extra' ? `<button type="button" class="btn btn-sm btn-link text-danger xb-rm" data-id="${b.id}"><i class="bi bi-trash"></i></button>` : ''}</td>
+        </tr>`).join('') : '<tr><td colspan="5" class="text-muted text-center">No barcodes.</td></tr>';
+    };
+    load().catch(VM.error);
+    document.getElementById('xbAdd').addEventListener('click', async () => {
+        const code = document.getElementById('xbCode').value.trim();
+        if (!code) return;
+        const [kind, id] = (document.getElementById('xbTarget').value || ':').split(':');
+        try {
+            await VM.api(`/products/${productId}/barcodes`, {method: 'POST', body: {barcode: code, kind: kind || null, target_id: id || null, note: document.getElementById('xbNote').value}});
+            document.getElementById('xbCode').value = ''; document.getElementById('xbNote').value = '';
+            VM.toast('Barcode added', 'success'); load();
+        } catch (e) { VM.error(e); }
+    });
+    document.getElementById('xbCode').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('xbAdd').click(); } });
+    body.addEventListener('click', async e => {
+        const b = e.target.closest('.xb-rm'); if (!b) return;
+        if (!await VM.confirm('Remove this barcode?', 'Scanning it will no longer find this item.')) return;
+        try { await VM.api(`/products/${productId}/barcodes/${b.dataset.id}`, {method: 'DELETE'}); load(); } catch (err) { VM.error(err); }
+    });
+})();
+</script>
+@endif
 @endpush

@@ -6,7 +6,7 @@
     <title>Receipt - {{ $order->id }}</title>
 
     <!-- JsBarcode -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.1/JsBarcode.all.min.js"></script>
+    <script src="{{ asset('vendor/jsbarcode/JsBarcode.all.min.js') }}"></script>
 
     <style>
         /* PRINT-OPTIMIZED STYLES */

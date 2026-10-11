@@ -266,6 +266,24 @@ class ProductController extends Controller
     public function update(Request $request, $id)
     {
         $product = Product::findOrFail($id);
+
+        // Branch server editing a head-office product: apply what the branch may change,
+        // turn price changes into requests for head office.
+        if (\App\Services\Catalogue\CatalogueRequests::governed($product)) {
+            $request->validate([
+                'price' => 'nullable|numeric|min:0', 'wholesale_price' => 'nullable|numeric|min:0', 'promo_price' => 'nullable|numeric|min:0',
+                'reorder_level' => 'nullable|numeric|min:0', 'change_reason' => 'nullable|string|max:255',
+            ]);
+            $r = app(\App\Services\Catalogue\CatalogueRequests::class)->saveAtBranch($request, $product);
+            return response()->json([
+                'success' => true,
+                'message' => $r['message'],
+                'requests' => $r['requests'],
+                'product' => ['id' => $product->id, 'title' => $product->title, 'barcode' => $product->barcode, 'sku' => $product->sku],
+                'redirect' => route('products.index'),
+            ]);
+        }
+
         try {
             $product = $this->products->save($request, $product);
         } catch (ValidationException $e) {
@@ -287,6 +305,10 @@ class ProductController extends Controller
     {
         try {
             $product = Product::findOrFail($id);
+
+            if (\App\Services\Catalogue\CatalogueRequests::governed($product)) {
+                return response()->json(['success' => false, 'message' => 'This product belongs to the head-office catalogue. To stop selling it here, untick "Active" on the product.'], 422);
+            }
 
             $hasHistory = DB::table('order_items')->where('product_id', $product->id)->exists()
                 || DB::table('stocks')->where('product_id', $product->id)->exists();
@@ -513,7 +535,19 @@ class ProductController extends Controller
 
         $products = Product::whereIn('id', $data['ids'])->get();
         $n = 0;
+        $skipped = 0;
+        $branchMay = ['activate', 'deactivate', 'reorder_level', 'feature', 'unfeature'];
         foreach ($products as $p) {
+            if (!in_array($data['action'], $branchMay, true) && \App\Services\Catalogue\CatalogueRequests::governed($p)) {
+                $skipped++;
+                continue;
+            }
+            if (in_array($data['action'], ['activate', 'deactivate', 'reorder_level'], true) && \App\Services\Catalogue\CatalogueRequests::governed($p)) {
+                \Illuminate\Support\Facades\DB::table('product_local_overrides')->insertOrIgnore([
+                    'product_id' => $p->id, 'field' => $data['action'] === 'reorder_level' ? 'reorder_level' : 'is_active',
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
             switch ($data['action']) {
                 case 'activate': $p->update(['is_active' => true]); break;
                 case 'deactivate': $p->update(['is_active' => false]); break;
@@ -531,7 +565,8 @@ class ProductController extends Controller
             $n++;
         }
 
-        return response()->json(['success' => true, 'message' => "{$n} product(s) updated."]);
+        return response()->json(['success' => true, 'message' => "{$n} product(s) updated."
+            . ($skipped ? " {$skipped} head-office product(s) skipped – head office manages that." : '')]);
     }
 
     /** Legacy bulk price update from the old product page – now recorded in price history. */

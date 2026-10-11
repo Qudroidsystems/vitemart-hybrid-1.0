@@ -518,8 +518,8 @@
 <div class="visually-hidden" role="status" aria-live="polite" id="searchStatus"></div>
 <!-- Toast Container -->
 <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('vendor/axios/axios.min.js') }}"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 <script>
 // COMPLETE POS SCRIPT WITH UNIT SELECTION VALIDATION AND BARCODE SCANNING
 // COMPLETE POS SCRIPT WITH UNIT SELECTION VALIDATION AND BARCODE SCANNING

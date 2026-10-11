@@ -21,7 +21,7 @@ class VitemartHeartbeat extends Command
         $payload = [
             'app_version' => config('vitemart.version'),
             'disk_free_mb' => (int) (@disk_free_space(base_path()) / 1048576),
-            'pending_events' => Schema::hasTable('sync_outbox') ? DB::table('sync_outbox')->whereIn('status', ['pending', 'sent'])->count() : 0,
+            'pending_events' => Schema::hasTable('sync_outbox') ? DB::table('sync_outbox')->where('status', 'pending')->count() : 0,
             'dead_letters' => Schema::hasTable('sync_outbox') ? DB::table('sync_outbox')->where('status', 'dead')->count() : 0,
             'last_backup_at' => Schema::hasTable('backup_runs') ? DB::table('backup_runs')->where('status', 'ok')->max('finished_at') : null,
         ];

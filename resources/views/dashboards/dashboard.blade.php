@@ -217,10 +217,10 @@
 </div>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/countup.js/2.8.0/countUp.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}">
+    <script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
+    <script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
+    <script src="{{ asset('vendor/countup/countUp.min.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Debug chart data

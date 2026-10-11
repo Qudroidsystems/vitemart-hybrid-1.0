@@ -13,3 +13,5 @@ Artisan::command('inspire', function () {
 |   * * * * * cd /path/to/vitemart && php artisan schedule:run >> /dev/null 2>&1
 */
 Schedule::command('vitemart:heartbeat')->everyMinute()->withoutOverlapping();
+Schedule::command('vitemart:catalogue-requests')->everyMinute()->withoutOverlapping();
+Schedule::command('vitemart:sync')->everyMinute()->withoutOverlapping(10);

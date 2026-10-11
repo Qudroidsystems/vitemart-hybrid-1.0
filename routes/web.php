@@ -163,6 +163,46 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/users/{user}/pin', [SecurityController::class, 'setPin'])->name('set-pin');
     });
 
+    // Catalogue: branch prices, requests to/from head office, field rules, extra barcodes
+    Route::controller(\App\Http\Controllers\Catalogue\CatalogueController::class)->group(function () {
+        Route::get('/products/{product}/barcodes', 'barcodes')->name('products.barcodes');
+        Route::post('/products/{product}/barcodes', 'addBarcode')->name('products.barcodes.add');
+        Route::delete('/products/{product}/barcodes/{barcode}', 'removeBarcode')->name('products.barcodes.remove');
+        Route::post('/products/{product}/submit-to-hq', 'submitProduct')->name('products.submit-to-hq');
+
+        Route::prefix('catalogue')->name('catalogue.')->group(function () {
+            Route::get('/requests', 'requestsPage')->name('requests');
+            Route::post('/price-requests', 'requestPrice')->name('price-requests.store');
+            Route::post('/price-requests/{priceRequest}/cancel', 'cancelRequest')->name('price-requests.cancel');
+            Route::post('/price-requests/{priceRequest}/approve', 'approvePrice')->name('price-requests.approve');
+            Route::post('/price-requests/{priceRequest}/reject', 'rejectPrice')->name('price-requests.reject');
+            Route::get('/submissions/{submission}', 'showSubmission')->name('submissions.show');
+            Route::post('/submissions/{submission}/approve', 'approveSubmission')->name('submissions.approve');
+            Route::post('/submissions/{submission}/reject', 'rejectSubmission')->name('submissions.reject');
+
+            Route::get('/price-lists', 'lists')->name('price-lists');
+            Route::post('/price-lists', 'storeList')->name('price-lists.store');
+            Route::get('/price-lists/{priceList}', 'showList')->name('price-lists.show');
+            Route::put('/price-lists/{priceList}', 'updateList')->name('price-lists.update');
+            Route::post('/price-lists/{priceList}/items', 'setItem')->name('price-lists.items.set');
+            Route::delete('/price-lists/{priceList}/items/{item}', 'removeItem')->name('price-lists.items.remove');
+
+            Route::get('/rules', 'policies')->name('policies');
+            Route::post('/rules', 'updatePolicies')->name('policies.update');
+        });
+    });
+
+    // Sync status / controls
+    Route::prefix('sync')->name('mb.sync.')->controller(\App\Http\Controllers\MultiBranch\SyncController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/run', 'run')->name('run');
+        Route::post('/retry', 'retry')->name('retry');
+        Route::post('/resync', 'resync')->name('resync');
+        Route::post('/snapshot', 'snapshot')->name('snapshot');
+        Route::post('/branches/{branch}/command', 'command')->name('command');
+    });
+    Route::post('/products/{product}/distribution', [\App\Http\Controllers\MultiBranch\SyncController::class, 'distribution'])->name('products.distribution');
+
     // Multi-branch
     Route::prefix('branches')->name('mb.branches.')->group(function () {
         Route::get('/', [BranchController::class, 'index'])->name('index');
@@ -218,6 +258,15 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/shifts/cash', [PosShiftController::class, 'cashMovement'])->name('shifts.cash');
         Route::post('/shifts/{shift}/close', [PosShiftController::class, 'close'])->name('shifts.close');
         Route::get('/shifts/{shift}/report', [PosShiftController::class, 'report'])->name('shifts.report');
+
+        // Tills and payments waiting for confirmation
+        Route::post('/register', [PosController::class, 'pickRegister'])->name('register.pick');
+        Route::get('/registers', [\App\Http\Controllers\PosRegisterController::class, 'index'])->name('registers.index');
+        Route::post('/registers', [\App\Http\Controllers\PosRegisterController::class, 'store'])->name('registers.store');
+        Route::put('/registers/{register}', [\App\Http\Controllers\PosRegisterController::class, 'update'])->name('registers.update');
+        Route::get('/payments', [\App\Http\Controllers\PosPaymentController::class, 'index'])->name('payments.index');
+        Route::post('/payments/{payment}/confirm', [\App\Http\Controllers\PosPaymentController::class, 'confirm'])->name('payments.confirm');
+        Route::post('/payments/{payment}/fail', [\App\Http\Controllers\PosPaymentController::class, 'fail'])->name('payments.fail');
 
         // Sales transactions
         Route::get('/transactions', [PosTransactionController::class, 'index'])->name('transactions');

@@ -20,6 +20,10 @@ class AppServiceProvider extends ServiceProvider
     {
         require_once app_path('Support/helpers.php');
 
+        // One price-list memo per request / job.
+        $this->app->scoped(\App\Services\Catalogue\PriceListResolver::class);
+        $this->app->scoped(\App\Services\Inventory\InventoryBalances::class);
+
         // Register FCM Service
         $this->app->singleton(FcmService::class, function ($app) {
             return new FcmService();

@@ -84,6 +84,11 @@ class VitemartInstall extends Command
         Install::refresh();
         $this->ensureLocations(Install::branch());
         AuditLogger::log('installed', 'Installed as headquarters (central)', 'branches');
+        if (\Illuminate\Support\Facades\Schema::hasTable('sync_dirty')) {
+            $n = \App\Services\Sync\Feed::snapshot();
+            \App\Services\Sync\Feed::build(100000);
+            $this->line("Catalogue feed prepared ({$n} records).");
+        }
         $this->info('This server is now the HEADQUARTERS installation.');
         $this->line('Next: create branches under Branches → Add branch, then issue an enrollment code for each.');
         return self::SUCCESS;
@@ -142,8 +147,12 @@ class VitemartInstall extends Command
         Install::refresh();
         $this->ensureLocations(Install::branch());
         AuditLogger::log('installed', 'Enrolled as branch ' . Install::branchCode(), 'branches');
+        if (\Illuminate\Support\Facades\Schema::hasTable('sync_outbox')) {
+            $n = \App\Services\Sync\Outbox::backfill();
+            $this->line("{$n} existing records queued to send to headquarters.");
+        }
         $this->info('Enrolled as branch ' . Install::branchCode() . ' – ' . Install::branch()->name . '.');
-        $this->line('Next: php artisan vitemart:status, then schedule `php artisan schedule:run` every minute so sync runs.');
+        $this->line('Next: php artisan vitemart:sync (first sync), then schedule `php artisan schedule:run` every minute so sync keeps running.');
         return self::SUCCESS;
     }
 

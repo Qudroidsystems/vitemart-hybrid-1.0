@@ -37,9 +37,11 @@ class BarcodeGenerator
     public static function next(): string
     {
         // In-store prefix (20) + this branch's 2-digit number, so two branches creating
-        // products offline can never produce the same code. HQ is branch 00.
+        // products offline can never produce the same code.
         $prefix = preg_replace('/\D/', '', (string) SystemSetting::get('barcode_prefix', '20')) ?: '20';
-        $prefix = substr($prefix, 0, 2) . str_pad((string) \App\Services\MultiBranch\Install::branchNumber(), 2, '0', STR_PAD_LEFT);
+        // Head office uses 29 00 …: the old single-store codes (20 00 …) live on in the first branch.
+        $lead = \App\Services\MultiBranch\Install::isCentral() ? '29' : substr($prefix, 0, 2);
+        $prefix = $lead . str_pad((string) \App\Services\MultiBranch\Install::branchNumber(), 2, '0', STR_PAD_LEFT);
         $bodyLen = 12 - strlen($prefix);
 
         return DB::transaction(function () use ($prefix, $bodyLen) {
@@ -74,6 +76,22 @@ class BarcodeGenerator
 
     public static function exists(string $code, ?string $ignoreTable = null, $ignoreId = null): bool
     {
+        // The barcode index (product_barcodes) covers primary and extra codes.
+        if (\App\Services\Catalogue\BarcodeIndex::ready()) {
+            $row = \App\Models\ProductBarcode::where('barcode', $code)->first();
+            if ($row) {
+                $ownRow = $ignoreId && $row->kind === 'primary' && match ($ignoreTable) {
+                    'products' => $row->product_id == $ignoreId && !$row->product_variation_id && !$row->product_unit_id,
+                    'product_variations' => $row->product_variation_id == $ignoreId,
+                    'product_unit' => $row->product_unit_id == $ignoreId,
+                    default => false,
+                };
+                if (!$ownRow) {
+                    return true;
+                }
+            }
+        }
+
         $checks = [
             'products' => Product::query(),
             'product_variations' => ProductVariation::query(),
@@ -96,6 +114,17 @@ class BarcodeGenerator
      */
     public static function owner(string $code): ?array
     {
+        if (\App\Services\Catalogue\BarcodeIndex::ready()
+            && ($row = \App\Models\ProductBarcode::with('product', 'variation', 'pack')->where('barcode', $code)->first())
+            && $row->product) {
+            if ($row->product_variation_id && $row->variation) {
+                return ['type' => 'variation', 'model' => $row->variation, 'kind' => $row->kind];
+            }
+            if ($row->product_unit_id && $row->pack) {
+                return ['type' => 'pack', 'model' => $row->pack, 'kind' => $row->kind];
+            }
+            return ['type' => 'product', 'model' => $row->product, 'kind' => $row->kind];
+        }
         if ($p = Product::where('barcode', $code)->first()) {
             return ['type' => 'product', 'model' => $p];
         }

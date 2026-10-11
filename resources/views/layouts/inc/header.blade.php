@@ -15,9 +15,7 @@
     <link rel="shortcut icon" href="{{ asset('theme/layouts/assets/images/favicon.ico')}}">
 
     <!-- Fonts css load -->
-    <link rel="preconnect" href="https://fonts.googleapis.com/">
-    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
-    <link id="fontsLink" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link id="fontsLink" href="{{ asset('vendor/fonts/fonts.css') }}" rel="stylesheet">
 
     <!-- Layout config Js -->
     <script src="{{ asset('theme/layouts/assets/js/layout.js')}}"></script>

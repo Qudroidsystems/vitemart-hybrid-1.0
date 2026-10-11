@@ -206,9 +206,9 @@
 </div>
 
 <!-- SCRIPTS -->
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/list.js@2.3.1/dist/list.min.js"></script>
+<script src="{{ asset('vendor/axios/axios.min.js') }}"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
+<script src="{{ asset('vendor/listjs/list.min.js') }}"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

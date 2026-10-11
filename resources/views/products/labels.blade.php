@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Barcode labels</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+    <script src="{{ asset('vendor/jsbarcode/JsBarcode.all.min.js') }}"></script>
     @php
         [$w, $h] = array_map('intval', explode('x', $size)) + [38, 25];
         $w = max(25, min(100, $w)); $h = max(15, min(80, $h));

@@ -160,7 +160,7 @@
 </div>
 
 @section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="{{ asset('vendor/apexcharts/apexcharts.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize chart if we have data

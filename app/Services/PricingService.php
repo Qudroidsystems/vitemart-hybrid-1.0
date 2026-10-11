@@ -36,6 +36,9 @@ class PricingService
 
     public function quote(Product $product, ?ProductVariation $variation = null, ?ProductUnit $pack = null, ?Customer $customer = null): array
     {
+        // Branch price lists replace catalogue prices item by item.
+        [$product, $variation, $pack, $priceList] = app(\App\Services\Catalogue\PriceListResolver::class)->apply($product, $variation, $pack);
+
         $wholesale = $customer && strtolower((string) $customer->customer_type) === 'wholesale';
         $qtyPer = $pack ? max(0.001, (float) $pack->quantity_per_unit) : 1.0;
 
@@ -100,6 +103,7 @@ class PricingService
             'source' => $source,
             'below_cost' => $cost > 0 && $price < $cost,
             'wholesale' => $wholesale,
+            'price_list' => $priceList,
         ];
     }
 
@@ -112,6 +116,14 @@ class PricingService
      */
     public function setPrice(Product|ProductVariation|ProductUnit $model, string $field, ?float $value, string $source = 'manual', ?string $reason = null, ?string $batchId = null): ?PriceHistory
     {
+        // On a branch server, head-office products keep head-office prices; the branch requests changes.
+        // (Cost from goods received and approved requests are the exceptions.)
+        $product = $model instanceof Product ? $model : $model->product;
+        if (!in_array($source, ['receive', 'branch_request', 'sync'], true)
+            && \App\Services\Catalogue\CatalogueRequests::governed($product)) {
+            throw new \App\Exceptions\CentralProductException($product->title);
+        }
+
         $old = $model->{$field};
         $old = $old === null ? null : (float) $old;
         if ($old === $value || ($old !== null && $value !== null && abs($old - $value) < 0.005)) {
@@ -171,6 +183,9 @@ class PricingService
     {
         $field = $rule['field'] ?? 'price';
         $q = Product::query()->with(['variations', 'packs.unit', 'category:id,name']);
+        if (\App\Services\MultiBranch\Install::isBranch()) {
+            $q->where('owner', '!=', 'central'); // head-office products: request changes instead
+        }
 
         if (!empty($criteria['product_ids'])) {
             $q->whereIn('id', (array) $criteria['product_ids']);

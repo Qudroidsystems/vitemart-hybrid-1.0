@@ -475,8 +475,8 @@
 </div>
 
 
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('vendor/axios/axios.min.js') }}"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Inventory management script loaded');

@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 class OrderPayment extends Model
 {
     use HasUid, BelongsToBranch;
-    protected $fillable = ['order_id', 'method', 'amount', 'reference', 'pos_shift_id', 'user_id'];
+    protected $fillable = ['order_id', 'method', 'amount', 'reference', 'pos_shift_id', 'user_id', 'status', 'provider',
+        'confirmed_by', 'confirmed_at', 'status_note', 'cash_register_id'];
 
-    protected $casts = ['amount' => 'decimal:2'];
+    protected $casts = ['amount' => 'decimal:2', 'confirmed_at' => 'datetime'];
 
     public const METHODS = [
         'cash' => 'Cash',

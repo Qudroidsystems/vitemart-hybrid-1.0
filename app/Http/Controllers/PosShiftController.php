@@ -55,17 +55,35 @@ class PosShiftController extends Controller
         $data = $request->validate([
             'opening_float' => 'required|numeric|min:0',
             'register' => 'nullable|string|max:50',
+            'cash_register_id' => 'nullable|integer',
         ]);
         if (PosShift::currentFor($request->user()->id)) {
             return response()->json(['success' => false, 'message' => 'You already have an open shift.'], 422);
         }
+
+        // One drawer = one shift at a time.
+        $registers = \App\Models\CashRegister::here()->where('status', 'active')->get();
+        $register = !empty($data['cash_register_id']) ? $registers->firstWhere('id', (int) $data['cash_register_id'])
+            : ($registers->count() === 1 ? $registers->first() : null);
+        if ($registers->count() > 1 && !$register) {
+            return response()->json(['success' => false, 'message' => 'Choose which till you are opening.', 'choose_register' => true], 422);
+        }
+        if ($register && ($busy = $register->openShift()) && $busy->user_id !== $request->user()->id) {
+            $who = trim(($busy->user->first_name ?? '') . ' ' . ($busy->user->last_name ?? ''));
+            return response()->json(['success' => false, 'message' => "Till {$register->code} already has an open shift ({$who}). Close it first."], 422);
+        }
+
         $shift = PosShift::create([
             'user_id' => $request->user()->id,
-            'register' => $data['register'] ?? null,
+            'register' => $register ? $register->code : ($data['register'] ?? null),
             'opened_at' => now(),
             'opening_float' => $data['opening_float'],
             'status' => 'open',
         ]);
+        if ($register) {
+            $shift->forceFill(['cash_register_id' => $register->id])->save();
+            $register->forceFill(['last_used_at' => now(), 'last_user_id' => $request->user()->id])->saveQuietly();
+        }
         AuditLogger::log('shift_opened', 'Opened cash drawer with float ' . money($shift->opening_float), 'pos', ['PosShift', $shift->id, 'Shift #' . $shift->id]);
 
         return response()->json(['success' => true, 'message' => 'Shift opened.', 'shift' => $this->payload($shift)]);

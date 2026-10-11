@@ -145,3 +145,111 @@ so keep the server clock synced (NTP).
 ```bash
 DB_CONNECTION=mysql DB_DATABASE=vitemart_test ./vendor/bin/pest      # 30 tests
 ```
+
+---
+
+# Multi-branch, phases 3–4 (catalogue and the branch till)
+
+## Install
+```bash
+php artisan migrate                 # 2 new migrations
+php artisan vitemart:rebuild-stock --barcodes   # optional check: recomputes balances and the barcode index
+php artisan optimize:clear
+```
+Keep the scheduler running (`* * * * * php artisan schedule:run`): on branch servers it now also sends
+price-change requests / new products to head office and applies head office's decisions every minute.
+
+## Catalogue (phase 3)
+- **Barcode index** – every barcode (product, variation, pack, and *extra* codes) lives in one table with a unique key,
+  so a code can never ring up two items. Product form → *Other barcodes for this item*: add the new-packaging code,
+  a second supplier's code or an old code; scanning any of them rings up that item (or that carton).
+- **Branch prices** (Catalogue → Branch prices) – price lists that override the catalogue price item by item:
+  a branch's own list beats an all-branch list, higher priority wins, optional start/end dates. The till, labels and
+  every price shown use them automatically.
+- **What branches may change** (Catalogue → What branches may change) – per field: head office only / branch asks /
+  branch decides. Defaults: name, barcodes, category, packs, cost = head office; prices = branch asks;
+  reorder level and "sold at this branch" = branch decides.
+- On a branch server, a **head-office product** opens with a blue banner; locked fields are greyed out. Changing a
+  price sends a **request** to head office (with a reason) – the till keeps the old price until it is approved.
+  The bulk price tool and promotions skip head-office products; price-control quick edits become requests.
+- **Requests from branches** (head office): approve a price for that branch only (goes into its branch price list)
+  or for all branches (changes the catalogue), with a note; or reject.
+- A branch can **offer a product it created** to head office (*Offer to head office* on the product). Head office
+  reviews it (barcode clashes are flagged) and adds it to the catalogue under the same identity.
+- Branch servers keep requests if head office is unreachable and send them when it is back.
+
+New permissions (given to Super Admin and Admin): Manage price lists, Request price change, Approve price change,
+Submit product to head office, Approve product submission, Manage field policies.
+
+## The branch till (phase 4)
+- **Stock balances per branch**: on hand (store/warehouse), reserved, quarantined, in transit, incoming.
+  *Available = on hand − reserved*; the till refuses to sell stock that is reserved (e.g. for a transfer).
+  Stock moved to a quarantine location stops being sellable. Product stock figures now show this branch's sellable stock.
+- **Tills** (POS → Tills): each till sells from a stock location; one open shift per till. Each till PC picks its till
+  once from the top bar of the POS. Sales and payments record the till.
+- **Transfers wait for confirmation** (setting `transfer_needs_confirmation`, on by default): a bank transfer taken at
+  the till is *Waiting* until someone with *Confirm payments* checks the bank (POS → Payments to confirm) and marks it
+  *Received* or *Not received* (the sale becomes unpaid and the customer owes it). A supervisor who has seen the money
+  can tick "I have seen this money" at the till.
+  Optional `card_needs_terminal_ref`: the cashier must type the card terminal reference.
+- **No internet needed in the shop**: the till and back-office pages now load fonts and libraries from `public/vendor`
+  instead of CDNs. The till also installs a small service worker (`public/pos-sw.js`, on https or localhost) that keeps
+  its files on the PC and shows a "reconnecting" screen – with the cart kept – if the store server can't be reached.
+- Fixed: the stock ledger could not record the receiving side of a transfer (`transfer_in` was missing from the column).
+
+New permissions: Manage cash registers, Confirm payments, View stock balances.
+
+## Tests
+```bash
+DB_CONNECTION=mysql DB_DATABASE=vitemart_test ./vendor/bin/pest      # 46 tests
+```
+
+---
+
+# Multi-branch, phase 5 (sync)
+
+## Install
+```bash
+php artisan migrate        # 1 new migration
+php artisan optimize:clear
+```
+- **Head office:** `php artisan vitemart:sync --snapshot` once (puts the whole catalogue, staff, roles, customers and
+  head-office settings into the feed). After that the scheduler keeps the feed up to date every minute.
+- **Each branch:** `php artisan vitemart:sync --backfill` once (sends the branch's existing sales, stock, customers and
+  shifts to head office – add `--since=2026-01-01` to limit history), then the scheduler syncs every minute.
+  New branches do this automatically when they run `vitemart:install`.
+- The cron entry is the same on every server: `* * * * * php artisan schedule:run`.
+
+## How it works
+- **Branch → head office:** every sale, sale line, payment, refund, stock movement, stock adjustment, shift, cash
+  in/out, customer, loyalty-point entry, till, location, locally created product and audit entry is written to an
+  outbox *in the same database transaction* as the change, then sent in order. If the internet is down nothing is
+  lost – it waits and goes when the line is back. Head office applies each event exactly once.
+- **Head office → branches:** catalogue (products, packs, variations, barcodes), categories, brands, units, price lists
+  (a branch only receives its own and the all-branch ones), the "what branches may change" rules, staff (with their
+  roles, home branch and extra branches), roles and permissions, customers with their loyalty balance, and the
+  head-office settings (discount limit, below-cost rule, approval rules, payment rules, scale-barcode rules …).
+  Each branch reads a change feed with its own position, so a branch that was offline for a week just catches up.
+- **Who wins:** head office for what it owns; the branch for what the rules let it decide (reorder level, "sold
+  here"); last change wins for a customer's details; loyalty points are one balance – head office adds up the
+  points earned and spent at every branch.
+- **Same thing created twice:** a customer with the same phone, a product with the same barcode, staff with the same
+  email, a category/unit with the same name – they are recognised as one record; the branch takes head office's
+  identity and history stays linked. These matches are listed on the Sync page.
+- **Which branches sell a product:** product page at head office → *Which branches sell this* (all / selected).
+- **Sync page** (sidebar → Branches → Sync):
+  - Branch: last sync, what is waiting, problems with the reason head office gave, *Sync now*, *Send again*,
+    *Download catalogue again*.
+  - Head office: every branch's last contact, how far behind, what is waiting there, what failed here, matched
+    records, and *Send instruction*: download catalogue again, recalculate stock, send history again, sign everyone
+    out, retry failed, report diagnostics. A branch on an older version refuses an instruction that needs a newer one.
+- Head-office generated barcodes now start `2900…` (the old single-store codes `2000…` stay with the first branch).
+- Two-step sign-in secrets are not synced: each person sets it up once on each server they sign in to.
+- Several branches can now each have a "Main store" location (location names/codes are unique per branch).
+
+New permissions: View sync status, Manage sync, Distribute products.
+
+## Tests
+```bash
+DB_CONNECTION=mysql DB_DATABASE=vitemart_test ./vendor/bin/pest      # 57 tests
+```

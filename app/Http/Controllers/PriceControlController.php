@@ -153,6 +153,20 @@ class PriceControlController extends Controller
             return response()->json(['success' => false, 'message' => 'Selling price cannot be empty.'], 422);
         }
 
+        $product = $model instanceof Product ? $model : $model->product;
+        if (\App\Services\Catalogue\CatalogueRequests::governed($product)) {
+            if (!in_array($data['field'], ['price', 'wholesale_price', 'promo_price'], true) || $value === null) {
+                return response()->json(['success' => false, 'message' => 'Head office manages this price.'], 422);
+            }
+            app(\App\Services\Catalogue\CatalogueRequests::class)->request(
+                $product, $model instanceof ProductVariation ? $model : null, $model instanceof ProductUnit ? $model : null,
+                $data['field'], $value, $data['reason'] ?? 'Quick edit'
+            );
+            app(\App\Services\Catalogue\CatalogueRequests::class)->pushQuietly();
+            return response()->json(['success' => true, 'changed' => false, 'requested' => true,
+                'message' => 'Sent to head office for approval. The price changes here once it is approved.']);
+        }
+
         $history = $this->pricing->setPrice($model, $data['field'], $value, 'manual', $data['reason'] ?? 'Quick edit');
 
         return response()->json(['success' => true, 'changed' => (bool) $history, 'message' => $history ? 'Price updated.' : 'No change.']);
@@ -170,7 +184,12 @@ class PriceControlController extends Controller
         ]);
 
         $n = 0;
+        $skipped = 0;
         foreach (Product::whereIn('id', $data['product_ids'])->get() as $p) {
+            if (\App\Services\Catalogue\CatalogueRequests::governed($p)) {
+                $skipped++; // head-office promotions come from head office
+                continue;
+            }
             if ($data['action'] === 'end') {
                 $this->pricing->setPrice($p, 'promo_price', null, 'promo', 'Promotion ended');
                 $p->update(['promo_starts_at' => null, 'promo_ends_at' => null]);
@@ -184,7 +203,8 @@ class PriceControlController extends Controller
 
         AuditLogger::log('price_changed', ($data['action'] === 'end' ? 'Ended promotion on ' : "Started {$data['percent']}% promotion on ") . "$n product(s)", 'pricing');
 
-        return response()->json(['success' => true, 'message' => "$n product(s) updated."]);
+        return response()->json(['success' => true, 'message' => "$n product(s) updated."
+            . ($skipped ? " {$skipped} head-office product(s) skipped – promotions on those come from head office." : '')]);
     }
 
     public function history(Request $request)

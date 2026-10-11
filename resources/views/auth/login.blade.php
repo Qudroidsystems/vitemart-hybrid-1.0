@@ -14,12 +14,10 @@
     <link rel="shortcut icon" href="{{ asset('theme/layouts/assets/images/favicon.ico') }}">
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ asset('vendor/fonts/fonts.css') }}" rel="stylesheet">
 
     <!-- AOS -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link href="{{ asset('vendor/aos/aos.css') }}" rel="stylesheet">
 
     <!-- Theme CSS -->
     <script src="{{ asset('theme/layouts/assets/js/layout.js') }}"></script>
@@ -157,7 +155,7 @@
     </div>
 </section>
 
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script src="{{ asset('vendor/aos/aos.js') }}"></script>
 <script>
     AOS.init({
         duration: 1000,

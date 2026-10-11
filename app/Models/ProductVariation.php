@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 class ProductVariation extends Model
 {
     use HasUid;
+    use \App\Traits\IndexesBarcodes;
     use Auditable;
 
     protected string $auditModule = 'products';

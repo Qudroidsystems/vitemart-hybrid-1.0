@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 class ProductUnit extends Model
 {
     use HasUid;
+    use \App\Traits\IndexesBarcodes;
     use Auditable;
 
     protected $table = 'product_unit';
