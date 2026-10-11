@@ -35,7 +35,7 @@
         .pos-top .tbtn { background: transparent; border: 1px solid rgba(255,255,255,.15); color: #e5e7eb; border-radius: 8px; padding: 5px 10px; font-size: 13px; white-space: nowrap; }
         .pos-top .tbtn:hover { background: rgba(255,255,255,.08); }
         .pos-top .tbtn kbd { background: rgba(255,255,255,.12); color: #fff; font-size: 10px; padding: 1px 4px; margin-left: 4px; }
-        .pos-main { display: grid; grid-template-columns: minmax(0, 1fr) 440px; min-height: 0; }
+        .pos-main { display: grid; grid-template-columns: minmax(0, 1fr) var(--cart-w, 480px); min-height: 0; }
         .pos-left { display: flex; flex-direction: column; min-height: 0; padding: 12px; gap: 10px; }
         .pos-right { background: var(--pos-panel); border-left: 1px solid var(--pos-line); display: flex; flex-direction: column; min-height: 0; }
 
@@ -63,31 +63,40 @@
         .tile .s { font-size: 11px; color: var(--pos-muted); }
         .tile.out { opacity: .55; }
 
-        .cust { padding: 10px 12px; border-bottom: 1px solid var(--pos-line); display: flex; gap: 8px; align-items: center; }
+        /* ---- Cart: sizes follow --cs (cart text size: .9 normal, 1 large, 1.15 extra large) ---- */
+        .pos-right { --cs: 1; }
+        body.cart-normal .pos-right { --cs: .88; }
+        body.cart-xl { --cart-w: 540px; }
+        body.cart-xl .pos-right { --cs: 1.15; }
+        .cust { padding: calc(10px * var(--cs)) 14px; border-bottom: 1px solid var(--pos-line); display: flex; gap: 8px; align-items: center; }
         .cust .who { flex: 1; min-width: 0; }
-        .cust .who .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .cust .who .m { font-size: 12px; color: var(--pos-muted); }
+        .cust .who .n { font-weight: 700; font-size: calc(16px * var(--cs)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cust .who .m { font-size: calc(13px * var(--cs)); color: var(--pos-muted); }
         .cart { flex: 1; overflow: auto; }
-        .line { padding: 9px 12px; border-bottom: 1px solid var(--pos-line); display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; cursor: pointer; }
-        .line.sel { background: var(--pos-accent-soft); box-shadow: inset 3px 0 0 var(--pos-accent); }
-        .line .nm { font-weight: 600; line-height: 1.25; }
-        .line .vari { font-size: 12px; color: var(--pos-muted); }
-        .line .tot { font-weight: 700; text-align: right; white-space: nowrap; }
-        .line .ctl { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .qtybox { display: inline-flex; border: 1px solid var(--pos-line); border-radius: 8px; overflow: hidden; }
-        .qtybox button { border: 0; background: #f3f5f9; width: 30px; font-size: 16px; line-height: 1; }
-        .qtybox input { width: 62px; border: 0; text-align: center; font-weight: 600; }
-        .line select { width: auto; max-width: 150px; }
-        .line .disc { font-size: 12px; color: var(--pos-danger); }
-        .line .warn { font-size: 12px; color: var(--pos-warn); }
-        .empty-cart { text-align: center; color: var(--pos-muted); padding: 60px 20px; }
-        .empty-cart i { font-size: 48px; display: block; margin-bottom: 8px; opacity: .5; }
-        .totals { border-top: 1px solid var(--pos-line); padding: 10px 14px; }
-        .totals .row2 { display: flex; justify-content: space-between; color: var(--pos-muted); }
-        .totals .grand { display: flex; justify-content: space-between; align-items: baseline; font-size: 28px; font-weight: 800; color: var(--pos-ink); margin-top: 4px; }
+        .line { padding: calc(12px * var(--cs)) 14px; border-bottom: 1px solid var(--pos-line); display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; cursor: pointer; }
+        .line.sel { background: var(--pos-accent-soft); box-shadow: inset 4px 0 0 var(--pos-accent); }
+        .line .nm { font-weight: 700; font-size: calc(18px * var(--cs)); line-height: 1.25; color: var(--pos-ink); }
+        .line .vari { font-size: calc(14.5px * var(--cs)); color: var(--pos-muted); margin-top: 2px; }
+        .line .tot { font-weight: 800; font-size: calc(19px * var(--cs)); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .line .ctl { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .qtybox { display: inline-flex; border: 1.5px solid var(--pos-line); border-radius: 10px; overflow: hidden; }
+        .qtybox button { border: 0; background: #f3f5f9; width: calc(40px * var(--cs)); height: calc(40px * var(--cs)); font-size: calc(22px * var(--cs)); line-height: 1; font-weight: 600; }
+        .qtybox input { width: calc(74px * var(--cs)); border: 0; text-align: center; font-weight: 800; font-size: calc(18px * var(--cs)); font-variant-numeric: tabular-nums; }
+        .line select { width: auto; flex: 1 1 110px; min-width: 0; max-width: 200px; font-size: calc(14.5px * var(--cs)); padding-top: calc(7px * var(--cs)); padding-bottom: calc(7px * var(--cs)); }
+        .line .ctl .btn-sm { font-size: calc(15px * var(--cs)); padding: calc(6px * var(--cs)) calc(10px * var(--cs)); }
+        .line .disc { font-size: calc(14px * var(--cs)); font-weight: 600; color: var(--pos-danger); }
+        .line .warn { font-size: calc(14px * var(--cs)); font-weight: 600; color: var(--pos-warn); }
+        .line .badge { font-size: calc(11.5px * var(--cs)); }
+        .empty-cart { text-align: center; color: var(--pos-muted); padding: 60px 20px; font-size: calc(16px * var(--cs)); }
+        .empty-cart i { font-size: 56px; display: block; margin-bottom: 8px; opacity: .5; }
+        .totals { border-top: 1px solid var(--pos-line); padding: calc(10px * var(--cs)) 16px; }
+        .totals .row2 { display: flex; justify-content: space-between; color: var(--pos-muted); font-size: calc(16px * var(--cs)); font-variant-numeric: tabular-nums; }
+        .totals .row2 span:last-child { color: var(--pos-ink); font-weight: 600; }
+        .totals .row2 .text-danger { color: var(--pos-danger) !important; }
+        .totals .grand { display: flex; justify-content: space-between; align-items: baseline; font-size: calc(34px * var(--cs)); font-weight: 800; color: var(--pos-ink); margin-top: 4px; font-variant-numeric: tabular-nums; }
         .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0 12px 8px; }
-        .actions .btn { font-size: 12px; padding: 8px 4px; }
-        .pay { margin: 0 12px 12px; height: 62px; font-size: 22px; font-weight: 800; border-radius: 12px; background: var(--pos-accent); color: var(--pos-accent-ink); border: 0; }
+        .actions .btn { font-size: calc(13.5px * var(--cs)); padding: 9px 4px; font-weight: 600; }
+        .pay { margin: 0 12px 12px; height: calc(64px * var(--cs)); font-size: calc(24px * var(--cs)); font-weight: 800; border-radius: 12px; background: var(--pos-accent); color: var(--pos-accent-ink); border: 0; }
         .pay:disabled { opacity: .45; }
         .pay kbd { font-size: 11px; background: rgba(255,255,255,.2); }
 
@@ -214,7 +223,8 @@
         body.is-offline .offline { display: inline-block; }
 
         @media (max-width: 1100px) {
-            .pos-main { grid-template-columns: minmax(0, 1fr) 380px; }
+            .pos-main { grid-template-columns: minmax(0, 1fr) var(--cart-w-md, 420px); }
+            body.cart-xl { --cart-w-md: 460px; }
             .pos-top .hide-md { display: none; }
         }
         @media (max-width: 820px) {
@@ -256,6 +266,7 @@
                 <li><a class="dropdown-item" href="#" id="mCashOut"><i class="bi bi-box-arrow-up me-2"></i>Cash out / payout</a></li>
                 <li><a class="dropdown-item" href="#" id="mCloseShift"><i class="bi bi-lock me-2"></i>Close shift (Z-report)</a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item d-flex justify-content-between align-items-center" href="#" id="mCartSize"><span><i class="bi bi-fonts me-2"></i>Cart text size</span><span class="badge bg-secondary ms-3" id="mCartSizeLbl">Large</span></a></li>
                 <li><a class="dropdown-item" href="#" id="mAskQty"><i class="bi bi-check2-square me-2" id="mAskQtyIcon"></i>Ask quantity before adding</a></li>
                 <li><a class="dropdown-item" href="#" id="mShortcuts"><i class="bi bi-keyboard me-2"></i>Keyboard shortcuts</a></li>
                 @can('dashboard')<li><a class="dropdown-item" href="{{ $config['routes']['dashboard'] }}"><i class="bi bi-speedometer2 me-2"></i>Back to dashboard</a></li>@endcan
@@ -816,6 +827,24 @@
         scan.focus();
         if (qm.pendingScan) { scan.value = qm.pendingScan; qm.pendingScan = null; submitScan(); }
     });
+
+    // Cart text size (per till): normal / large (default) / extra large
+    const CART_SIZES = [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']];
+    let cartSize = 'large';
+    try { cartSize = localStorage.getItem('pos_cart_size') || 'large'; } catch (e) {}
+    function applyCartSize() {
+        document.body.classList.toggle('cart-normal', cartSize === 'normal');
+        document.body.classList.toggle('cart-xl', cartSize === 'xl');
+        $('#mCartSizeLbl').textContent = (CART_SIZES.find(x => x[0] === cartSize) || CART_SIZES[1])[1];
+    }
+    $('#mCartSize').addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();   // keep the menu open so it can be clicked again
+        const i = CART_SIZES.findIndex(x => x[0] === cartSize);
+        cartSize = CART_SIZES[(i + 1) % CART_SIZES.length][0];
+        try { localStorage.setItem('pos_cart_size', cartSize); } catch (err) {}
+        applyCartSize();
+    });
+    applyCartSize();
 
     function paintAskQty() { $('#mAskQtyIcon').className = 'bi ' + (askQty ? 'bi-check2-square' : 'bi-square') + ' me-2'; }
     $('#mAskQty').addEventListener('click', e => {
