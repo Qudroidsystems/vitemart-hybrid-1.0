@@ -149,7 +149,7 @@
                     <td>{{ $product->sku }}</td>
                     <td>{{ $product->category?->name ?? '-' }}</td>
                     <td>{{ $product->brand?->name ?? '-' }}</td>
-                    <td class="text-right">${{ number_format($product->price, 2) }}</td>
+                    <td class="text-right">{{ currency_symbol() }}{{ number_format($product->price, 2) }}</td>
 
                     @foreach($locations as $location)
                         @php

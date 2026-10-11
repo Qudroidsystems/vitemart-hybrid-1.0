@@ -73,8 +73,8 @@
                 <td>{{ $sale->order_date->format('M d, Y') }}</td>
                 <td>{{ $sale->customer->name ?? 'Guest' }}</td>
                 <td class="text-center">{{ $sale->items ? $sale->items->count() : 0 }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($sale->total_amount, 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($sale->commission_amount ?? 0, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($sale->total_amount, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($sale->commission_amount ?? 0, 2) }}</td>
                 <td>{{ strtoupper($sale->payment_method) }}</td>
                 <td>{{ strtoupper($sale->status) }}</td>
             </tr>
@@ -83,8 +83,8 @@
         <tfoot>
             <tr class="total-row">
                 <td colspan="4"><strong>TOTAL</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalRevenue, 2) }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalRevenue, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</strong></td>
                 <td colspan="2"></td>
             </tr>
         </tfoot>

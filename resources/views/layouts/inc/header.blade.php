@@ -1093,7 +1093,7 @@
                                                     <h6 class="mt-0 mb-3 fs-md">
                                                         <a href="#!" class="text-reset">Blive Printed Men Round Neck</a>
                                                     </h6>
-                                                    <div class="text-muted fw-medium d-none">$<span class="product-price">327.49</span></div>
+                                                    <div class="text-muted fw-medium d-none">{{ currency_symbol() }}<span class="product-price">327.49</span></div>
                                                     <div class="input-step">
                                                         <button type="button" class="minus">–</button>
                                                         <input type="number" class="product-quantity" value="2" min="0" max="100" readonly>
@@ -1119,7 +1119,7 @@
                                                     <h6 class="mt-0 mb-3 fs-md">
                                                         <a href="#!" class="text-reset">Willage Volleyball Ball</a>
                                                     </h6>
-                                                    <div class="text-muted fw-medium d-none">$<span class="product-price">49.06</span></div>
+                                                    <div class="text-muted fw-medium d-none">{{ currency_symbol() }}<span class="product-price">49.06</span></div>
                                                     <div class="input-step">
                                                         <button type="button" class="minus">–</button>
                                                         <input type="number" class="product-quantity" value="3" min="0" max="100" readonly>
@@ -1145,7 +1145,7 @@
                                                     <h6 class="mt-0 mb-3 fs-md">
                                                         <a href="#!" class="text-reset">Cotton collar tshirts for men</a>
                                                     </h6>
-                                                    <div class="text-muted fw-medium d-none">$<span class="product-price">53.33</span></div>
+                                                    <div class="text-muted fw-medium d-none">{{ currency_symbol() }}<span class="product-price">53.33</span></div>
                                                     <div class="input-step">
                                                         <button type="button" class="minus">–</button>
                                                         <input type="number" class="product-quantity" value="3" min="0" max="100" readonly>
@@ -1171,7 +1171,7 @@
                                                     <h6 class="mt-0 mb-3 fs-md">
                                                         <a href="#!" class="text-reset">Jeans blue men boxer</a>
                                                     </h6>
-                                                    <div class="text-muted fw-medium d-none">$<span class="product-price">164.37</span></div>
+                                                    <div class="text-muted fw-medium d-none">{{ currency_symbol() }}<span class="product-price">164.37</span></div>
                                                     <div class="input-step">
                                                         <button type="button" class="minus">–</button>
                                                         <input type="number" class="product-quantity" value="1" min="0" max="100" readonly>
@@ -1197,7 +1197,7 @@
                                                     <h6 class="mt-0 mb-3 fs-md">
                                                         <a href="#!" class="text-reset">Full Sleeve Solid Men Sweatshirt</a>
                                                     </h6>
-                                                    <div class="text-muted fw-medium d-none">$<span class="product-price">180.00</span></div>
+                                                    <div class="text-muted fw-medium d-none">{{ currency_symbol() }}<span class="product-price">180.00</span></div>
                                                     <div class="input-step">
                                                         <button type="button" class="minus">–</button>
                                                         <input type="number" class="product-quantity" value="1" min="0" max="100" readonly>
@@ -1216,19 +1216,19 @@
                                                 <tbody>
                                                     <tr>
                                                         <td>Sub Total :</td>
-                                                        <td class="text-end cart-subtotal">$1306.52</td>
+                                                        <td class="text-end cart-subtotal">{{ currency_symbol() }}1306.52</td>
                                                     </tr>
                                                     <tr>
                                                         <td>Discount <span class="text-muted">(Steex15)</span>:</td>
-                                                        <td class="text-end cart-discount">- $195.98</td>
+                                                        <td class="text-end cart-discount">- {{ currency_symbol() }}195.98</td>
                                                     </tr>
                                                     <tr>
                                                         <td>Shipping Charge :</td>
-                                                        <td class="text-end cart-shipping">$65.00</td>
+                                                        <td class="text-end cart-shipping">{{ currency_symbol() }}65.00</td>
                                                     </tr>
                                                     <tr>
                                                         <td>Estimated Tax (12.5%) : </td>
-                                                        <td class="text-end cart-tax">$163.31</td>
+                                                        <td class="text-end cart-tax">{{ currency_symbol() }}163.31</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
@@ -1240,7 +1240,7 @@
                                     <div class="d-flex justify-content-between align-items-center pb-3">
                                         <h5 class="m-0 text-muted">Total:</h5>
                                         <div class="px-2">
-                                            <h5 class="m-0 cart-total">$1338.86</h5>
+                                            <h5 class="m-0 cart-total">{{ currency_symbol() }}1338.86</h5>
                                         </div>
                                     </div>
 
@@ -1436,7 +1436,7 @@
                                 <a class="dropdown-item" href="apps-tickets-overview.html"><i class="mdi mdi-calendar-check-outline text-muted fs-lg align-middle me-1"></i> <span class="align-middle">Taskboard</span></a>
                                 <a class="dropdown-item" href="pages-faqs.html"><i class="mdi mdi-lifebuoy text-muted fs-lg align-middle me-1"></i> <span class="align-middle">Help</span></a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="pages-profile.html"><i class="mdi mdi-wallet text-muted fs-lg align-middle me-1"></i> <span class="align-middle">Balance : <b>$8451.36</b></span></a>
+                                <a class="dropdown-item" href="pages-profile.html"><i class="mdi mdi-wallet text-muted fs-lg align-middle me-1"></i> <span class="align-middle">Balance : <b>{{ currency_symbol() }}8451.36</b></span></a>
                                 <a class="dropdown-item" href="pages-profile-settings.html"><span class="badge bg-success-subtle text-success mt-1 float-end">New</span><i class="mdi mdi-cog-outline text-muted fs-lg align-middle me-1"></i> <span class="align-middle">Settings</span></a>
                                 <a class="dropdown-item" href="auth-lockscreen.html"><i class="mdi mdi-lock text-muted fs-lg align-middle me-1"></i> <span class="align-middle">Lock screen</span></a>
                                 <a class="dropdown-item" href="auth-logout.html"><i class="mdi mdi-logout text-muted fs-lg align-middle me-1"></i> <span class="align-middle" data-key="t-logout">Logout</span></a>

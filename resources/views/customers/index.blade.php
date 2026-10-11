@@ -53,7 +53,7 @@
                     <div class="card card-animate bg-info-subtle">
                         <div class="card-body">
                             <p class="text-uppercase fw-medium text-info mb-0">Total Revenue</p>
-                            <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($stats['total_spent'], 2) }}</h4>
+                            <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($stats['total_spent'], 2) }}</h4>
                         </div>
                     </div>
                 </div>
@@ -152,13 +152,13 @@
                                                 <span class="fw-semibold">{{ $customer->orders_count }}</span>
                                             </td>
                                             <td>
-                                                <span class="fw-semibold">₦{{ number_format($customer->orders_sum_total_amount ?? 0, 2) }}</span>
+                                                <span class="fw-semibold">{{ currency_symbol() }}{{ number_format($customer->orders_sum_total_amount ?? 0, 2) }}</span>
                                             </td>
                                             <td>
                                                 @if($customer->credit_limit > 0)
                                                     <div class="d-flex flex-column">
-                                                        <small class="text-muted">Limit: ₦{{ number_format($customer->credit_limit, 2) }}</small>
-                                                        <small class="text-muted">Balance: ₦{{ number_format($customer->credit_balance, 2) }}</small>
+                                                        <small class="text-muted">Limit: {{ currency_symbol() }}{{ number_format($customer->credit_limit, 2) }}</small>
+                                                        <small class="text-muted">Balance: {{ currency_symbol() }}{{ number_format($customer->credit_balance, 2) }}</small>
                                                     </div>
                                                 @else
                                                     <span class="text-muted">No credit</span>
@@ -329,7 +329,7 @@
 
                         <!-- Credit & Loyalty -->
                         <div class="col-md-6">
-                            <label for="credit_limit" class="form-label">Credit Limit (₦)</label>
+                            <label for="credit_limit" class="form-label">Credit Limit ({{ currency_label() }})</label>
                             <input type="number" class="form-control" id="credit_limit" name="credit_limit" min="0" step="0.01" value="0">
                         </div>
                         <div class="col-md-6">
@@ -453,7 +453,7 @@
 
                         <!-- Credit & Loyalty -->
                         <div class="col-md-6">
-                            <label for="edit_credit_limit" class="form-label">Credit Limit (₦)</label>
+                            <label for="edit_credit_limit" class="form-label">Credit Limit ({{ currency_label() }})</label>
                             <input type="number" class="form-control" id="edit_credit_limit" name="credit_limit" min="0" step="0.01" value="0">
                         </div>
                         <div class="col-md-6">
@@ -623,7 +623,7 @@
                             <div class="col-md-3">
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
-                                        <h5 class="card-title mb-1" id="view_total_spent">₦0.00</h5>
+                                        <h5 class="card-title mb-1" id="view_total_spent">{{ currency_symbol() }}0.00</h5>
                                         <p class="text-muted mb-0">Total Spent</p>
                                     </div>
                                 </div>
@@ -631,7 +631,7 @@
                             <div class="col-md-3">
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
-                                        <h5 class="card-title mb-1" id="view_avg_order">₦0.00</h5>
+                                        <h5 class="card-title mb-1" id="view_avg_order">{{ currency_symbol() }}0.00</h5>
                                         <p class="text-muted mb-0">Avg. Order</p>
                                     </div>
                                 </div>
@@ -673,12 +673,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Format currency
     function formatCurrency(amount) {
         if (!amount) amount = 0;
-        return new Intl.NumberFormat('en-NG', {
-            style: 'currency',
-            currency: 'NGN',
+        amount = Number(amount);
+        return (amount < 0 ? '-' : '') + @json(currency_symbol()) + Math.abs(amount).toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        }).format(amount);
+        });
     }
 
     // Format date
@@ -947,8 +946,8 @@ document.addEventListener('DOMContentLoaded', function() {
             viewFields.forEach(field => {
                 if (field.tagName === 'P' || field.tagName === 'SPAN' || field.tagName === 'H3') {
                     field.textContent = field.id === 'view_total_orders' ? '0' :
-                                      field.id === 'view_total_spent' ? '₦0.00' :
-                                      field.id === 'view_avg_order' ? '₦0.00' :
+                                      field.id === 'view_total_spent' ? '{{ currency_symbol() }}0.00' :
+                                      field.id === 'view_avg_order' ? '{{ currency_symbol() }}0.00' :
                                       field.id === 'view_last_order' ? 'N/A' : '';
                 }
             });

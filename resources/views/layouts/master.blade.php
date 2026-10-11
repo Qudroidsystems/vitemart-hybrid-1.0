@@ -126,9 +126,11 @@
         .vm-bulkbar.show { display: flex; }
         .table-hover tbody tr.vm-selected { background: rgba(64, 81, 137, .06); }
     </style>
+
+    @include('layouts.partials.cb-shell-head')
 </head>
 
-<body>
+<body class="cb-ui">
 
     <!-- Begin page -->
     <div id="layout-wrapper">
@@ -559,11 +561,13 @@
                 <!-- Sidebar -->
             </div>
 
+            @include('layouts.partials.cb-sidebar-footer')
+
             <div class="sidebar-background"></div>
         </div>
 <!-- Left Sidebar End -->
 <!-- Vertical Overlay-->
-<div class="vertical-overlay"></div>
+<div class="vertical-overlay" id="vertical-overlay"></div>
 
         <header id="page-topbar">
             <div class="layout-width">
@@ -598,171 +602,11 @@
                             </span>
                         </button>
 
-                        <form class="app-search d-none d-md-inline-flex">
-                            <div class="position-relative">
-                                <input type="text" class="form-control" placeholder="Search..." autocomplete="off" id="search-options" value="">
-                                <span class="mdi mdi-magnify search-widget-icon"></span>
-                                <span class="mdi mdi-close-circle search-widget-icon search-widget-icon-close d-none" id="search-close-options"></span>
-                            </div>
-                            <div class="dropdown-menu dropdown-menu-lg" id="search-dropdown">
-                                <div data-simplebar style="max-height: 320px;">
-                                    <!-- item-->
-                                    <div class="dropdown-header">
-                                        <h6 class="text-overflow text-muted mb-0 text-uppercase">Recent Searches</h6>
-                                    </div>
-
-                                    <div class="dropdown-item bg-transparent text-wrap">
-                                        <a href="index.html" class="btn btn-subtle-secondary btn-sm btn-rounded">how to setup <i class="mdi mdi-magnify ms-1"></i></a>
-                                        <a href="index.html" class="btn btn-subtle-secondary btn-sm btn-rounded">buttons <i class="mdi mdi-magnify ms-1"></i></a>
-                                    </div>
-                                    <!-- item-->
-                                    <div class="dropdown-header mt-2">
-                                        <h6 class="text-overflow text-muted mb-1 text-uppercase">Pages</h6>
-                                    </div>
-
-                                    <!-- item-->
-                                    <a href="javascript:void(0);" class="dropdown-item notify-item">
-                                        <i class="ri-bubble-chart-line align-middle fs-18 text-muted me-2"></i>
-                                        <span>Analytics Dashboard</span>
-                                    </a>
-
-                                    <!-- item-->
-                                    <a href="javascript:void(0);" class="dropdown-item notify-item">
-                                        <i class="ri-lifebuoy-line align-middle fs-18 text-muted me-2"></i>
-                                        <span>Help Center</span>
-                                    </a>
-
-                                    <!-- item-->
-                                    <a href="javascript:void(0);" class="dropdown-item notify-item">
-                                        <i class="ri-user-settings-line align-middle fs-18 text-muted me-2"></i>
-                                        <span>My account settings</span>
-                                    </a>
-
-                                    <!-- item-->
-                                    <div class="dropdown-header mt-2">
-                                        <h6 class="text-overflow text-muted mb-2 text-uppercase">Members</h6>
-                                    </div>
-
-                                    <div class="notification-list">
-                                        <!-- item -->
-                                        <a href="javascript:void(0);" class="dropdown-item notify-item py-2">
-                                            <div class="d-flex">
-                                                <img src="assets/images/users/avatar-2.jpg" class="me-3 rounded-circle avatar-xs" alt="user-pic">
-                                                <div class="flex-1">
-                                                    <h6 class="m-0">Angela Bernier</h6>
-                                                    <span class="fs-11 mb-0 text-muted">Manager</span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                        <!-- item -->
-                                        <a href="javascript:void(0);" class="dropdown-item notify-item py-2">
-                                            <div class="d-flex">
-                                                <img src="assets/images/users/avatar-3.jpg" class="me-3 rounded-circle avatar-xs" alt="user-pic">
-                                                <div class="flex-1">
-                                                    <h6 class="m-0">David Grasso</h6>
-                                                    <span class="fs-11 mb-0 text-muted">Web Designer</span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                        <!-- item -->
-                                        <a href="javascript:void(0);" class="dropdown-item notify-item py-2">
-                                            <div class="d-flex">
-                                                <img src="assets/images/users/avatar-5.jpg" class="me-3 rounded-circle avatar-xs" alt="user-pic">
-                                                <div class="flex-1">
-                                                    <h6 class="m-0">Mike Bunch</h6>
-                                                    <span class="fs-11 mb-0 text-muted">React Developer</span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div class="text-center pt-3 pb-1">
-                                    <a href="#" class="btn btn-primary btn-sm">View All Results <i class="ri-arrow-right-line ms-1"></i></a>
-                                </div>
-                            </div>
-                        </form>
+                        @include('layouts.partials.cb-topbar', ['part' => 'left'])
                     </div>
 
-                    <div class="d-flex align-items-center">
-
-                        <div class="dropdown topbar-head-dropdown ms-1 header-item">
-                            <button type="button" class="btn btn-icon btn-topbar btn-ghost-dark rounded-circle mode-layout" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i class="bi bi-sun align-middle fs-3xl"></i>
-                            </button>
-                            <div class="dropdown-menu p-2 dropdown-menu-end" id="light-dark-mode">
-                                <a href="#!" class="dropdown-item" data-mode="light"><i class="bi bi-sun align-middle me-2"></i> Default (light mode)</a>
-                                <a href="#!" class="dropdown-item" data-mode="dark"><i class="bi bi-moon align-middle me-2"></i> Dark</a>
-                                <a href="#!" class="dropdown-item" data-mode="auto"><i class="bi bi-moon-stars align-middle me-2"></i> Auto (system default)</a>
-                            </div>
-                        </div>
-
-                        <div class="dropdown ms-sm-3 header-item topbar-user">
-                            <button type="button" class="btn shadow-none" id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="d-flex align-items-center">
-                                    @php
-                                        use App\Models\User;
-                                        $userdata = User::find(Auth::id());
-                                    @endphp
-
-                                    <?php
-                                        $image = "unnamed.png";
-                                        if ($userdata && $userdata->avatar) {
-                                            $image = $userdata->avatar;
-                                        }
-                                    ?>
-
-                                    @if($userdata)
-                                        <img class="rounded-circle header-profile-user" src="{{ asset('storage/' . $userdata->profile_image) }}"  alt="{{ $userdata->name }}">
-                                        <span class="text-start ms-xl-2">
-                                            <span class="d-none d-xl-inline-block ms-1 fw-medium user-name-text">{{ $userdata->name }}</span>
-                                            <span class="d-none d-xl-block ms-1 fs-sm user-name-sub-text">{{ $userdata->roles->first()->name ?? 'User' }}</span>
-                                        </span>
-                                    @else
-                                        <img class="rounded-circle header-profile-user" src="{{ asset('theme/layouts/assets/images/users/user-dummy-img.jpg') }}" alt="User">
-                                        <span class="text-start ms-xl-2">
-                                            <span class="d-none d-xl-inline-block ms-1 fw-medium user-name-text">Guest</span>
-                                            <span class="d-none d-xl-block ms-1 fs-sm user-name-sub-text">Not logged in</span>
-                                        </span>
-                                    @endif
-                                </span>
-                            </button>
-                            <div class="dropdown-menu dropdown-menu-end">
-                                @if($userdata)
-                                    <h6 class="dropdown-header">Welcome {{ $userdata->name }}!</h6>
-                                    <a class="dropdown-item" href="{{ route('user.overview', $userdata->id) }}">
-                                        <i class="mdi mdi-account-circle text-muted fs-lg align-middle me-1"></i>
-                                        <span class="align-middle">Profile</span>
-                                    </a>
-                                    {{-- <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item" href="{{ route('user.settings', $userdata->id) }}">
-                                        <i class="mdi mdi-cog text-muted fs-lg align-middle me-1"></i>
-                                        <span class="align-middle">Settings</span>
-                                    </a> --}}
-                                    <a class="dropdown-item" href="{{ route('mfa.setup') }}">
-                                        <i class="mdi mdi-shield-key text-muted fs-lg align-middle me-1"></i>
-                                        <span class="align-middle">Two-step sign-in</span>
-                                    </a>
-                                    <a class="dropdown-item" href="auth-lockscreen.html">
-                                        <i class="mdi mdi-lock text-muted fs-lg align-middle me-1"></i>
-                                        <span class="align-middle">Lock screen</span>
-                                    </a>
-
-                                    <form method="POST" action="{{ route('logout') }}">
-                                        @csrf
-                                        <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault(); this.closest('form').submit();">
-                                            <i class="mdi mdi-logout text-muted fs-lg align-middle me-1"></i>
-                                            <span class="align-middle" data-key="t-logout">Logout</span>
-                                        </a>
-                                    </form>
-                                @else
-                                    <a class="dropdown-item" href="{{ route('login') }}">
-                                        <i class="mdi mdi-login text-muted fs-lg align-middle me-1"></i>
-                                        <span class="align-middle">Login</span>
-                                    </a>
-                                @endif
-                            </div>
-                        </div>
+                    <div class="d-flex align-items-center gap-1">
+                        @include('layouts.partials.cb-topbar', ['part' => 'right'])
                     </div>
                 </div>
             </div>
@@ -1569,6 +1413,8 @@
      @if (Route::is('salesperson.*'))
             @include('layouts.pages-assets.js.sale-list-js')
     @endif
+    @include('layouts.partials.cb-spotlight')
+    @include('layouts.partials.cb-shell-js')
       </body>
 
       </html>

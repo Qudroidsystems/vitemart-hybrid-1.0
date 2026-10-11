@@ -70,6 +70,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Spotlight search in the top bar (Ctrl/⌘ + K)
+    Route::get('/spotlight/search', [\App\Http\Controllers\SpotlightController::class, 'search'])->middleware('throttle:90,1')->name('spotlight.search');
     Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
 
     // Roles & Permissions

@@ -46,7 +46,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-success mb-0">Total Revenue</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">${{ number_format($analytics['total_revenue'] ?? 0, 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($analytics['total_revenue'] ?? 0, 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-success rounded-circle fs-3">
@@ -128,7 +128,7 @@
                                                     </div>
                                                 </td>
                                                 <td class="text-end">
-                                                    <span class="badge bg-success-subtle text-success">${{ number_format($item->total_sales ?? 0, 2) }}</span>
+                                                    <span class="badge bg-success-subtle text-success">{{ currency_symbol() }}{{ number_format($item->total_sales ?? 0, 2) }}</span>
                                                 </td>
                                             </tr>
                                         @empty
@@ -219,11 +219,11 @@
                                                     <td>
                                                         @if($product->sale_price && $product->sale_price < $product->price)
                                                             @php $discount = round((($product->price - $product->sale_price) / $product->price) * 100); @endphp
-                                                            <del class="text-muted small">${{ number_format($product->price, 2) }}</del><br>
-                                                            <span class="text-danger fw-bold">${{ number_format($product->sale_price, 2) }}</span>
+                                                            <del class="text-muted small">{{ currency_symbol() }}{{ number_format($product->price, 2) }}</del><br>
+                                                            <span class="text-danger fw-bold">{{ currency_symbol() }}{{ number_format($product->sale_price, 2) }}</span>
                                                             <span class="badge bg-danger position-relative" style="top:-8px;right:-32px;font-size:0.65rem;">-{{ $discount }}%</span>
                                                         @else
-                                                            <span class="fw-bold">${{ number_format($product->price, 2) }}</span>
+                                                            <span class="fw-bold">{{ currency_symbol() }}{{ number_format($product->price, 2) }}</span>
                                                         @endif
                                                     </td>
                                                     <td class="text-center"><span class="fw-semibold">{{ $product->sold_quantity ?? 0 }}</span></td>
@@ -305,9 +305,9 @@
                                                 <div class="row g-3">
                                                     <div class="col-md-6"><label class="form-label">Title *</label><input type="text" name="title" id="title" class="form-control" required></div>
                                                     <div class="col-md-6"><label class="form-label">SKU *</label><input type="text" name="sku" id="sku" class="form-control" required></div>
-                                                    <div class="col-md-4"><label class="form-label">Price *</label><div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" name="price" id="price" class="form-control" required></div></div>
+                                                    <div class="col-md-4"><label class="form-label">Price *</label><div class="input-group"><span class="input-group-text">{{ currency_label() }}</span><input type="number" step="0.01" name="price" id="price" class="form-control" required></div></div>
                                                     <div class="col-md-4"><label class="form-label">Discount %</label><input type="number" min="0" max="100" id="discount_percent" class="form-control"></div>
-                                                    <div class="col-md-4"><label class="form-label">Sale Price</label><div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" name="sale_price" id="sale_price" class="form-control"></div></div>
+                                                    <div class="col-md-4"><label class="form-label">Sale Price</label><div class="input-group"><span class="input-group-text">{{ currency_label() }}</span><input type="number" step="0.01" name="sale_price" id="sale_price" class="form-control"></div></div>
                                                     <div class="col-md-4"><label class="form-label">Stock *</label><input type="number" name="stock" id="stock" class="form-control" required min="0"></div>
                                                     <div class="col-md-6"><label class="form-label">Product Type *</label><select name="product_type" id="product_type" class="form-control" required>
                                                         <option value="simple">Simple Product</option>

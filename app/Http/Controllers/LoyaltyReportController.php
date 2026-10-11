@@ -149,7 +149,7 @@ class LoyaltyReportController extends Controller
 
         $callback = function() use ($customers) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['Customer Name', 'Phone', 'Email', 'Total Points', 'Value (₦)', 'Joined']);
+            fputcsv($file, ['Customer Name', 'Phone', 'Email', 'Total Points', 'Value (' . currency_label() . ')', 'Joined']);
 
             foreach ($customers as $c) {
                 $value = $c->points->points / config('loyalty.redeem_rate', 100);

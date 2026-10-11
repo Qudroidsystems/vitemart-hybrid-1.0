@@ -189,7 +189,7 @@ class SalesPersonController extends Controller
         if (!$settings) {
             $settings = new \stdClass();
             $settings->store_name = 'Store Management System';
-            $settings->currency_symbol = '₦';
+            $settings->currency_symbol = currency_label();
             $settings->address = null;
             $settings->phone = null;
             $settings->email = null;
@@ -265,7 +265,7 @@ class SalesPersonController extends Controller
         if (!$settings) {
             $settings = new \stdClass();
             $settings->store_name = 'Store Management System';
-            $settings->currency_symbol = '₦';
+            $settings->currency_symbol = currency_label();
             $settings->address = null;
             $settings->phone = null;
             $settings->email = null;

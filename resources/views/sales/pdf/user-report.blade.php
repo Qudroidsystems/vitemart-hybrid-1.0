@@ -235,7 +235,7 @@
     <div class="summary-cards">
         <div class="summary-card">
             <h4>TOTAL REVENUE</h4>
-            <div class="value">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalRevenue, 2) }}</div>
+            <div class="value">{{ currency_symbol() }}{{ number_format($totalRevenue, 2) }}</div>
         </div>
         <div class="summary-card">
             <h4>TOTAL ORDERS</h4>
@@ -243,11 +243,11 @@
         </div>
         <div class="summary-card">
             <h4>AVERAGE ORDER</h4>
-            <div class="value">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($averageOrder, 2) }}</div>
+            <div class="value">{{ currency_symbol() }}{{ number_format($averageOrder, 2) }}</div>
         </div>
         <div class="summary-card">
             <h4>TOTAL COMMISSION</h4>
-            <div class="value">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</div>
+            <div class="value">{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</div>
         </div>
     </div>
 
@@ -258,19 +258,19 @@
         </h3>
         <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 180px; background: #f8f9fa; padding: 8px; margin: 3px; border-radius: 5px;">
-                <strong>Cash:</strong> {{ $settings->currency_symbol ?? '₦' }}{{ number_format($cashSales, 2) }}<br>
+                <strong>Cash:</strong> {{ currency_symbol() }}{{ number_format($cashSales, 2) }}<br>
                 <small>{{ $cashCount }} orders ({{ $totalOrders > 0 ? number_format(($cashCount/$totalOrders)*100, 1) : 0 }}%)</small>
             </div>
             <div style="flex: 1; min-width: 180px; background: #f8f9fa; padding: 8px; margin: 3px; border-radius: 5px;">
-                <strong>Card:</strong> {{ $settings->currency_symbol ?? '₦' }}{{ number_format($cardSales, 2) }}<br>
+                <strong>Card:</strong> {{ currency_symbol() }}{{ number_format($cardSales, 2) }}<br>
                 <small>{{ $cardCount }} orders ({{ $totalOrders > 0 ? number_format(($cardCount/$totalOrders)*100, 1) : 0 }}%)</small>
             </div>
             <div style="flex: 1; min-width: 180px; background: #f8f9fa; padding: 8px; margin: 3px; border-radius: 5px;">
-                <strong>Transfer:</strong> {{ $settings->currency_symbol ?? '₦' }}{{ number_format($transferSales, 2) }}<br>
+                <strong>Transfer:</strong> {{ currency_symbol() }}{{ number_format($transferSales, 2) }}<br>
                 <small>{{ $transferCount }} orders ({{ $totalOrders > 0 ? number_format(($transferCount/$totalOrders)*100, 1) : 0 }}%)</small>
             </div>
             <div style="flex: 1; min-width: 180px; background: #f8f9fa; padding: 8px; margin: 3px; border-radius: 5px;">
-                <strong>POS:</strong> {{ $settings->currency_symbol ?? '₦' }}{{ number_format($posSales, 2) }}<br>
+                <strong>POS:</strong> {{ currency_symbol() }}{{ number_format($posSales, 2) }}<br>
                 <small>{{ $posCount }} orders ({{ $totalOrders > 0 ? number_format(($posCount/$totalOrders)*100, 1) : 0 }}%)</small>
             </div>
         </div>
@@ -306,8 +306,8 @@
                 <td>{{ $sale->order_date->format('M d, Y') }}</td>
                 <td>{{ $sale->customer->name ?? 'Guest' }}</td>
                 <td class="text-center">{{ $itemCount }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($sale->total_amount, 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($sale->commission_amount ?? 0, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($sale->total_amount, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($sale->commission_amount ?? 0, 2) }}</td>
                 <td>
                     <span class="badge {{ $paymentBadgeClass }}">
                         {{ strtoupper($sale->payment_method) }}
@@ -324,8 +324,8 @@
         <tfoot>
             <tr class="total-row">
                 <td colspan="4"><strong>TOTAL</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalRevenue, 2) }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalRevenue, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</strong></td>
                 <td colspan="2"></td>
             </tr>
         </tfoot>
@@ -372,9 +372,9 @@
             <tr>
                 <td>{{ date('M d, Y', strtotime($date)) }}</td>
                 <td class="text-center">{{ $data['count'] }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['revenue'], 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['commission'], 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['count'] > 0 ? $data['revenue'] / $data['count'] : 0, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['revenue'], 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['commission'], 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['count'] > 0 ? $data['revenue'] / $data['count'] : 0, 2) }}</td>
                 <td class="text-right">{{ $totalRevenue > 0 ? number_format(($data['revenue'] / $totalRevenue) * 100, 1) : 0 }}%</td>
             </tr>
             @endforeach
@@ -383,9 +383,9 @@
             <tr class="total-row">
                 <td><strong>TOTAL</strong></td>
                 <td class="text-center"><strong>{{ $totalOrders }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalRevenue, 2) }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($averageOrder, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalRevenue, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($averageOrder, 2) }}</strong></td>
                 <td class="text-right"><strong>100%</strong></td>
             </tr>
         </tfoot>
@@ -435,9 +435,9 @@
             <tr>
                 <td>{{ $productName }}</td>
                 <td class="text-center">{{ number_format($data['quantity']) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['revenue'], 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['revenue'], 2) }}</td>
                 <td class="text-right">{{ $totalRevenue > 0 ? number_format(($data['revenue'] / $totalRevenue) * 100, 1) : 0 }}%</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['quantity'] > 0 ? $data['revenue'] / $data['quantity'] : 0, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['quantity'] > 0 ? $data['revenue'] / $data['quantity'] : 0, 2) }}</td>
             </tr>
             @endforeach
         </tbody>

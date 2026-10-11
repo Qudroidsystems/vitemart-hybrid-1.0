@@ -268,7 +268,7 @@ class Order extends Model
      */
     public function getFormattedCommissionAttribute(): string
     {
-        return '₦' . number_format($this->commission_amount ?? 0, 2);
+        return currency_symbol() . number_format($this->commission_amount ?? 0, 2);
     }
 
     /**
@@ -277,6 +277,6 @@ class Order extends Model
     public function getCommissionBadgeAttribute(): string
     {
         if (!$this->commission_amount) return '<span class="badge bg-secondary">No commission</span>';
-        return '<span class="badge bg-success">₦' . number_format($this->commission_amount, 2) . ' (' . $this->commission_rate . '%)</span>';
+        return '<span class="badge bg-success">' . currency_symbol() . number_format($this->commission_amount, 2) . ' (' . $this->commission_rate . '%)</span>';
     }
 }

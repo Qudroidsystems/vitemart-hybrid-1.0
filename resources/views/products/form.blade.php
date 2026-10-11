@@ -52,7 +52,7 @@
                 Price changes are sent to head office for approval; the till keeps the current price until they approve it.
                 <div class="mt-2" style="max-width:520px">
                     <input type="text" form="productForm" name="change_reason" class="form-control form-control-sm" maxlength="255"
-                           placeholder="Reason for a price change (e.g. competitor across the road sells at ₦450)">
+                           placeholder="Reason for a price change (e.g. competitor across the road sells at {{ currency_symbol() }}450)">
                 </div>
                 @if ($pendingRequests->isNotEmpty())
                     <div class="mt-2 fs-sm">

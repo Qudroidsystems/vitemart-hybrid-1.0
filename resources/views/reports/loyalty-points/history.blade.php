@@ -24,7 +24,7 @@
                             <div class="mt-3">
                                 <h2 class="text-primary">{{ number_format($customer->points->points ?? 0) }}</h2>
                                 <p class="mb-0">Total Points</p>
-                                <p class="fs-4 text-success">₦{{ number_format(($customer->points->points ?? 0) / config('loyalty.redeem_rate', 100), 2) }}</p>
+                                <p class="fs-4 text-success">{{ currency_symbol() }}{{ number_format(($customer->points->points ?? 0) / config('loyalty.redeem_rate', 100), 2) }}</p>
                             </div>
                         </div>
                     </div>

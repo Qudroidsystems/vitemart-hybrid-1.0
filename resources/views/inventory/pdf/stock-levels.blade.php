@@ -90,7 +90,7 @@
                     <td>{{ $product->sku }}</td>
                     <td>{{ $product->category?->name ?? '-' }}</td>
                     <td>{{ $product->brand?->name ?? '-' }}</td>
-                    <td>${{ number_format($product->price, 2) }}</td>
+                    <td>{{ currency_symbol() }}{{ number_format($product->price, 2) }}</td>
                     @foreach($locations as $location)
                         <td>{{ $locationStockData[$product->id][$location->id] ?? 0 }}</td>
                     @endforeach

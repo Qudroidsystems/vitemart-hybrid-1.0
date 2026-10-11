@@ -70,14 +70,14 @@
                         <br><small>Quantity: {{ $item->quantity }}</small>
                     </div>
                     <div class="item-price">
-                        ₦{{ number_format($item->price * $item->quantity, 2) }}
+                        {{ currency_symbol() }}{{ number_format($item->price * $item->quantity, 2) }}
                     </div>
                 </div>
                 @endforeach
 
                 <div class="total-row">
                     <div>Total Amount:</div>
-                    <div>₦{{ number_format($order->total_amount, 2) }}</div>
+                    <div>{{ currency_symbol() }}{{ number_format($order->total_amount, 2) }}</div>
                 </div>
             </div>
 

@@ -177,16 +177,16 @@
     <div class="summary-cards">
         <div class="summary-card">
             <h4>TOTAL COMMISSION</h4>
-            <div class="value">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</div>
+            <div class="value">{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</div>
         </div>
         <div class="summary-card">
             <h4>PAID COMMISSION</h4>
-            <div class="value">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalPaid, 2) }}</div>
+            <div class="value">{{ currency_symbol() }}{{ number_format($totalPaid, 2) }}</div>
             <small>{{ $paidCount }} records</small>
         </div>
         <div class="summary-card">
             <h4>PENDING COMMISSION</h4>
-            <div class="value">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalPending, 2) }}</div>
+            <div class="value">{{ currency_symbol() }}{{ number_format($totalPending, 2) }}</div>
             <small>{{ $pendingCount }} records</small>
         </div>
     </div>
@@ -216,8 +216,8 @@
                 <td>{{ $commission->order_date->format('M d, Y') }}</td>
                 <td>{{ $commission->user->name ?? 'System' }}</td>
                 <td>{{ $commission->customer->name ?? 'Guest' }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($commission->total_amount, 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($commission->commission_amount, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($commission->total_amount, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($commission->commission_amount, 2) }}</td>
                 <td>
                     <span class="badge badge-{{ $commission->commission_paid ? 'paid' : 'pending' }}">
                         {{ $commission->commission_paid ? 'PAID' : 'PENDING' }}
@@ -230,8 +230,8 @@
         <tfoot>
             <tr class="total-row">
                 <td colspan="4"><strong>TOTAL</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($commissions->sum('total_amount'), 2) }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($commissions->sum('total_amount'), 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</strong></td>
                 <td colspan="2"></td>
             </tr>
         </tfoot>
@@ -280,10 +280,10 @@
             <tr>
                 <td>{{ $name }}</td>
                 <td class="text-center">{{ $data['count'] }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['total_commission'], 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['paid_commission'], 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['pending_commission'], 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($data['count'] > 0 ? $data['total_commission'] / $data['count'] : 0, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['total_commission'], 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['paid_commission'], 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['pending_commission'], 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($data['count'] > 0 ? $data['total_commission'] / $data['count'] : 0, 2) }}</td>
             </tr>
             @endforeach
         </tbody>

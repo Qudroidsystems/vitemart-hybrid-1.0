@@ -169,7 +169,7 @@
                                         <input type="number" id="discountValue" class="form-control text-end"
                                                placeholder="0" min="0" step="0.01" aria-label="Discount amount" value="0">
                                         <select id="discountType" class="form-select" aria-label="Discount type">
-                                            <option value="fixed">₦</option>
+                                            <option value="fixed">{{ currency_label() }}</option>
                                             <option value="percent" selected>%</option>
                                         </select>
                                         <button class="btn btn-outline-primary" type="button" id="applyDiscountBtn"
@@ -180,22 +180,22 @@
                                 </div>
                                 <div class="d-flex justify-content-between text-danger fw-bold" id="discountRow" style="display: none;">
                                     <span>Discount Applied</span>
-                                    <span id="discountAmount">-₦0.00</span>
+                                    <span id="discountAmount">-{{ currency_symbol() }}0.00</span>
                                 </div>
                             </div>
                             <div class="border-top pt-3">
                                 <div class="d-flex justify-content-between mb-2">
                                     <span>Subtotal</span>
-                                    <span id="subtotal">₦0.00</span>
+                                    <span id="subtotal">{{ currency_symbol() }}0.00</span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-2">
                                     <span>Tax ({{ config('pos.tax_rate', 0) }}%)</span>
-                                    <span id="taxAmount">₦0.00</span>
+                                    <span id="taxAmount">{{ currency_symbol() }}0.00</span>
                                 </div>
                                 <hr class="my-3">
                                 <div class="d-flex justify-content-between fs-3 fw-bold text-success">
                                     <span>Grand Total</span>
-                                    <span id="grandTotal">₦0.00</span>
+                                    <span id="grandTotal">{{ currency_symbol() }}0.00</span>
                                 </div>
                             </div>
                             <div class="mt-4">
@@ -300,7 +300,7 @@
                             <small class="text-muted" id="originalPriceText"></small>
                         </div>
                         <div class="input-group input-group-lg mb-3">
-                            <span class="input-group-text bg-primary text-white fw-bold">₦</span>
+                            <span class="input-group-text bg-primary text-white fw-bold">{{ currency_label() }}</span>
                             <input type="number" id="pricePerUnit" class="form-control text-center border-secondary fs-3 fw-bold"
                                    min="0" step="0.01" placeholder="Enter price" style="height: 60px;" disabled>
                         </div>
@@ -345,7 +345,7 @@
                         </div>
                         <div class="mt-2">
                             <small class="text-muted d-block">Press Enter to confirm, ESC to cancel</small>
-                            <small class="text-success fw-semibold d-block mt-1" id="totalPriceDisplay">Total: ₦0.00</small>
+                            <small class="text-success fw-semibold d-block mt-1" id="totalPriceDisplay">Total: {{ currency_symbol() }}0.00</small>
                         </div>
                     </div>
                 </div>
@@ -411,7 +411,7 @@
                     <input type="number" id="itemDiscountValue" class="form-control" placeholder="0" min="0" step="0.01" aria-label="Discount amount">
                     <select id="itemDiscountType" class="form-select" aria-label="Discount type">
                         <option value="percent" selected>%</option>
-                        <option value="fixed">₦</option>
+                        <option value="fixed">{{ currency_label() }}</option>
                     </select>
                 </div>
                 <small class="text-muted">Leave 0 to remove discount</small>
@@ -729,7 +729,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof amount !== 'number') {
             amount = parseFloat(amount) || 0;
         }
-        return '₦' + formatNumber(amount, 2);
+        return @json(currency_symbol()) + formatNumber(amount, 2);
     }
 
     function formatQuantity(qty, isUnitMode = false) {
@@ -2089,7 +2089,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <i class="bi bi-barcode me-1"></i>${item.barcode || 'N/A'}
                                 </span>
                             </small>
-                            ${item.discount_value > 0 ? `<small class="text-warning d-block">-${formatNumber(item.discount_value, 2)}${item.discount_type === 'percent' ? '%' : '₦'} discount</small>` : ''}
+                            ${item.discount_value > 0 ? `<small class="text-warning d-block">-${formatNumber(item.discount_value, 2)}${item.discount_type === 'percent' ? '%' : @json(currency_symbol())} discount</small>` : ''}
                         </div>
                     </div>
                 </td>

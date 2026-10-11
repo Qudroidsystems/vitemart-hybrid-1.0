@@ -47,7 +47,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-success mb-0">Total Revenue</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">${{ number_format($analytics['total_revenue'] ?? 0, 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($analytics['total_revenue'] ?? 0, 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-success rounded-circle fs-3">
@@ -215,7 +215,7 @@
                                                 </div>
                                             </td>
                                             <td>{{ $order->created_at->format('d M, Y') }}</td>
-                                            <td class="fw-bold text-success">${{ number_format($order->total_amount, 2) }}</td>
+                                            <td class="fw-bold text-success">{{ currency_symbol() }}{{ number_format($order->total_amount, 2) }}</td>
                                             <td>
                                                 <span class="badge {{ $order->payment_status == 'paid' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger' }}">
                                                     {{ ucfirst($order->payment_status) }}
@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function () {
         options: {
             responsive: true,
             plugins: { legend: { position: 'top' } },
-            scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v } } }
+            scales: { y: { beginAtZero: true, ticks: { callback: v => @json(currency_symbol()) + v } } }
         }
     });
 

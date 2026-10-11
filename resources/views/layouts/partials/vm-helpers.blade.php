@@ -3,7 +3,9 @@
 window.VM = window.VM || {};
 (function (VM) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
-    VM.currency = @json(currency_symbol());
+    VM.currency = @json(currency_symbol());      // e.g. "₦" or "NGN " – put before amounts
+    VM.currencyLabel = @json(currency_label());  // bare symbol for labels
+    VM.currencyCode = @json(currency_code());
 
     VM.money = function (n, dp = 2) {
         n = Number(n || 0);

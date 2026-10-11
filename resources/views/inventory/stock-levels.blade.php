@@ -120,7 +120,7 @@
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-4">
                                 <div>
-                                    <h4 class="fs-22 fw-semibold ff-secondary mb-1">₦<span id="totalCostValue">0.00</span></h4>
+                                    <h4 class="fs-22 fw-semibold ff-secondary mb-1">{{ currency_symbol() }}<span id="totalCostValue">0.00</span></h4>
                                     <span class="badge bg-info-subtle text-info">Cost Value</span>
                                 </div>
                             </div>
@@ -140,7 +140,7 @@
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-4">
                                 <div>
-                                    <h4 class="fs-22 fw-semibold ff-secondary mb-1">₦<span id="totalSellingValue">0.00</span></h4>
+                                    <h4 class="fs-22 fw-semibold ff-secondary mb-1">{{ currency_symbol() }}<span id="totalSellingValue">0.00</span></h4>
                                     <span class="badge bg-success-subtle text-success">Selling Value</span>
                                 </div>
                             </div>
@@ -160,7 +160,7 @@
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-4">
                                 <div>
-                                    <h4 class="fs-22 fw-semibold ff-secondary mb-1">₦<span id="totalPotentialProfit">0.00</span></h4>
+                                    <h4 class="fs-22 fw-semibold ff-secondary mb-1">{{ currency_symbol() }}<span id="totalPotentialProfit">0.00</span></h4>
                                     <span class="badge bg-primary-subtle text-primary">Gross Profit</span>
                                 </div>
                             </div>
@@ -406,23 +406,23 @@
                                         <td>{{ $product->brand?->name ?? '-' }}</td>
                                         <td>
                                             @if($costPrice > 0)
-                                                <span class="fw-bold text-info">₦{{ number_format($costPrice, 2) }}</span>
+                                                <span class="fw-bold text-info">{{ currency_symbol() }}{{ number_format($costPrice, 2) }}</span>
                                             @else
                                                 <span class="text-muted">-</span>
                                             @endif
                                         </td>
                                         <td>
                                             @if($product->sale_price && $product->sale_price < $basePrice)
-                                                <del class="text-muted small">₦{{ number_format($basePrice, 2) }}</del>
+                                                <del class="text-muted small">{{ currency_symbol() }}{{ number_format($basePrice, 2) }}</del>
                                             @else
-                                                <span class="fw-bold">₦{{ number_format($basePrice, 2) }}</span>
+                                                <span class="fw-bold">{{ currency_symbol() }}{{ number_format($basePrice, 2) }}</span>
                                             @endif
                                         </td>
                                         <td>
                                             @if($product->sale_price && $product->sale_price < $basePrice)
-                                                <span class="fw-bold text-danger">₦{{ number_format($sellingPrice, 2) }}</span>
+                                                <span class="fw-bold text-danger">{{ currency_symbol() }}{{ number_format($sellingPrice, 2) }}</span>
                                             @else
-                                                <span class="fw-bold text-success">₦{{ number_format($sellingPrice, 2) }}</span>
+                                                <span class="fw-bold text-success">{{ currency_symbol() }}{{ number_format($sellingPrice, 2) }}</span>
                                             @endif
                                         </td>
                                         <td>
@@ -431,18 +431,18 @@
                                                     -{{ $discountPercent }}%
                                                 </span>
                                                 <br>
-                                                <small class="text-muted">Save ₦{{ number_format($discount, 2) }}</small>
+                                                <small class="text-muted">Save {{ currency_symbol() }}{{ number_format($discount, 2) }}</small>
                                             @else
                                                 <span class="badge bg-secondary-subtle text-secondary">No discount</span>
                                             @endif
                                         </td>
                                         <td>
                                             @if($profitMargin > 0)
-                                                <span class="fw-bold text-primary">₦{{ number_format($profitMargin, 2) }}</span>
+                                                <span class="fw-bold text-primary">{{ currency_symbol() }}{{ number_format($profitMargin, 2) }}</span>
                                             @elseif($profitMargin == 0)
-                                                <span class="text-muted">₦0.00</span>
+                                                <span class="text-muted">{{ currency_symbol() }}0.00</span>
                                             @else
-                                                <span class="fw-bold text-danger">₦{{ number_format($profitMargin, 2) }}</span>
+                                                <span class="fw-bold text-danger">{{ currency_symbol() }}{{ number_format($profitMargin, 2) }}</span>
                                             @endif
                                         </td>
                                         <td>
@@ -469,11 +469,11 @@
                                         <td>
                                             <div class="text-end">
                                                 <div class="fw-bold {{ $product->sale_price && $product->sale_price < $basePrice ? 'text-danger' : 'text-success' }}">
-                                                    ₦{{ number_format($stockValue, 2) }}
+                                                    {{ currency_symbol() }}{{ number_format($stockValue, 2) }}
                                                 </div>
-                                                <small class="text-muted">Cost: ₦{{ number_format($costValue, 2) }}</small>
+                                                <small class="text-muted">Cost: {{ currency_symbol() }}{{ number_format($costValue, 2) }}</small>
                                                 <div class="small {{ $potentialProfit >= 0 ? 'text-primary' : 'text-danger' }}">
-                                                    Profit: ₦{{ number_format($potentialProfit, 2) }}
+                                                    Profit: {{ currency_symbol() }}{{ number_format($potentialProfit, 2) }}
                                                 </div>
                                             </div>
                                         </td>
@@ -509,16 +509,16 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <th colspan="6" class="text-end">TOTALS:</th>
-                                    <th>₦<span id="footerTotalBase">0.00</span></th>
-                                    <th>₦<span id="footerTotalSelling">0.00</span></th>
+                                    <th>{{ currency_symbol() }}<span id="footerTotalBase">0.00</span></th>
+                                    <th>{{ currency_symbol() }}<span id="footerTotalSelling">0.00</span></th>
                                     <th><span id="footerProductsOnSale">0</span> on sale</th>
-                                    <th>₦<span id="footerTotalMargin">0.00</span></th>
+                                    <th>{{ currency_symbol() }}<span id="footerTotalMargin">0.00</span></th>
                                     <th><span id="footerAvgMargin">0.0</span>%</th>
                                     @foreach($locations as $location)
                                         <th class="text-center">{{ $locationStockTotals[$location->id] ?? 0 }}</th>
                                     @endforeach
                                     <th><span id="footerTotalStock">0</span></th>
-                                    <th>₦<span id="footerTotalValue">0.00</span></th>
+                                    <th>{{ currency_symbol() }}<span id="footerTotalValue">0.00</span></th>
                                     <th colspan="2"></th>
                                 </tr>
                             </tfoot>
@@ -625,10 +625,10 @@
                     <div class="mb-3">
                         <label class="form-label">Unit Cost (Optional)</label>
                         <div class="input-group">
-                            <span class="input-group-text">₦</span>
+                            <span class="input-group-text">{{ currency_label() }}</span>
                             <input type="number" step="0.01" name="unit_cost" id="unitCost" class="form-control" placeholder="Leave empty to use product cost">
                         </div>
-                        <small class="text-muted">Defaults to product cost price: ₦<span id="productCostPrice">0.00</span></small>
+                        <small class="text-muted">Defaults to product cost price: {{ currency_symbol() }}<span id="productCostPrice">0.00</span></small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Reason <span class="text-danger">*</span></label>
@@ -689,7 +689,7 @@
                     <div class="mb-3">
                         <label class="form-label">Unit Cost (Optional)</label>
                         <div class="input-group">
-                            <span class="input-group-text">₦</span>
+                            <span class="input-group-text">{{ currency_label() }}</span>
                             <input type="number" step="0.01" name="unit_cost" id="bulkUnitCost" class="form-control" placeholder="Leave empty to use product cost">
                         </div>
                         <small class="text-muted">Will use individual product cost prices if left empty</small>
@@ -749,14 +749,14 @@ function calculateTotals() {
         const cells = row.querySelectorAll('td');
         if (cells.length < 15) return;
 
-        const costPrice = parseFloat(cells[5].querySelector('.fw-bold')?.textContent?.replace('₦', '').replace(/,/g, '') || 0);
-        const basePrice = parseFloat(cells[6].querySelector('del')?.textContent?.replace('₦', '').replace(/,/g, '') || cells[6].querySelector('.fw-bold')?.textContent?.replace('₦', '').replace(/,/g, '') || 0);
-        const sellingPrice = parseFloat(cells[7].querySelector('.fw-bold')?.textContent?.replace('₦', '').replace(/,/g, '') || 0);
+        const costPrice = parseFloat(cells[5].querySelector('.fw-bold')?.textContent?.replace(@json(currency_symbol()), '').replace(/,/g, '') || 0);
+        const basePrice = parseFloat(cells[6].querySelector('del')?.textContent?.replace(@json(currency_symbol()), '').replace(/,/g, '') || cells[6].querySelector('.fw-bold')?.textContent?.replace(@json(currency_symbol()), '').replace(/,/g, '') || 0);
+        const sellingPrice = parseFloat(cells[7].querySelector('.fw-bold')?.textContent?.replace(@json(currency_symbol()), '').replace(/,/g, '') || 0);
         const marginPercent = parseFloat(cells[10].querySelector('.badge')?.textContent?.replace('%', '') || 0);
         const totalStockCell = cells[cells.length - 5];
         const stock = parseFloat(totalStockCell.querySelector('.fw-bold')?.textContent || 0);
         const stockValueCell = cells[cells.length - 4];
-        const stockValue = parseFloat(stockValueCell.querySelector('.fw-bold')?.textContent?.replace('₦', '').replace(/,/g, '') || 0);
+        const stockValue = parseFloat(stockValueCell.querySelector('.fw-bold')?.textContent?.replace(@json(currency_symbol()), '').replace(/,/g, '') || 0);
         const costValue = stock * costPrice;
         const sellingValue = stock * sellingPrice;
         const potentialProfit = sellingValue - costValue;
@@ -985,8 +985,8 @@ function loadStockHistory(productId, page = 1) {
                 history.data.forEach(t => {
                     const sign = ['in','adjustment','transfer_in','return'].includes(t.type) ? '+' : '-';
                     const user = t.user ? `${t.user.first_name} ${t.user.last_name}` : 'System';
-                    const unitCost = t.unit_cost ? `₦${parseFloat(t.unit_cost).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-';
-                    const totalCost = t.total_cost ? `₦${parseFloat(t.total_cost).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-';
+                    const unitCost = t.unit_cost ? `{{ currency_symbol() }}${parseFloat(t.unit_cost).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-';
+                    const totalCost = t.total_cost ? `{{ currency_symbol() }}${parseFloat(t.total_cost).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-';
                     html += `<tr>
                         <td class="small">${new Date(t.transaction_date).toLocaleString()}</td>
                         <td><span class="badge bg-${colors[t.type] || 'secondary'}">${t.type.replace('_',' ').toUpperCase()}</span></td>
@@ -1053,7 +1053,7 @@ function quickAdjust(productId, productTitle) {
     const row = document.querySelector(`.product-checkbox[value="${productId}"]`)?.closest('tr');
     if (row) {
         const costCell = row.querySelectorAll('td')[5];
-        const costPrice = costCell.querySelector('.fw-bold')?.textContent?.replace('₦', '').replace(/,/g, '') || costCell.textContent.replace('₦', '').replace(/,/g, '');
+        const costPrice = costCell.querySelector('.fw-bold')?.textContent?.replace(@json(currency_symbol()), '').replace(/,/g, '') || costCell.textContent.replace(@json(currency_symbol()), '').replace(/,/g, '');
         document.getElementById('productCostPrice').textContent = costPrice ? parseFloat(costPrice).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00';
     }
     updateQuantityLabel();

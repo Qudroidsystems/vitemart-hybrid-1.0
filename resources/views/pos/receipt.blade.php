@@ -232,7 +232,7 @@
 
 @php
     $store = \App\Models\StoreSetting::getSettings();
-    $currency = $store?->currency_symbol ?? '₦';
+    $currency = currency_symbol();
 @endphp
 
 <div class="receipt-container no-break">

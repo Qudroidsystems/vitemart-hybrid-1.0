@@ -80,7 +80,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Avg. Order Value</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($customerStats->avg_order_value ?? 0, 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($customerStats->avg_order_value ?? 0, 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-warning rounded-circle fs-3">
@@ -125,7 +125,7 @@
                                             <tr>
                                                 <td>{{ $day->day_name }}</td>
                                                 <td class="text-end">{{ number_format($day->order_count, 1) }}</td>
-                                                <td class="text-end">₦{{ number_format($day->avg_revenue, 2) }}</td>
+                                                <td class="text-end">{{ currency_symbol() }}{{ number_format($day->avg_revenue, 2) }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -164,9 +164,9 @@
                                             <tr>
                                                 <td>{{ date('M Y', strtotime($month->month . '-01')) }}</td>
                                                 <td class="text-end">{{ number_format($month->order_count) }}</td>
-                                                <td class="text-end">₦{{ number_format($month->total_revenue, 2) }}</td>
-                                                <td class="text-end">₦{{ number_format($month->total_commission, 2) }}</td>
-                                                <td class="text-end">₦{{ number_format($month->avg_order_value, 2) }}</td>
+                                                <td class="text-end">{{ currency_symbol() }}{{ number_format($month->total_revenue, 2) }}</td>
+                                                <td class="text-end">{{ currency_symbol() }}{{ number_format($month->total_commission, 2) }}</td>
+                                                <td class="text-end">{{ currency_symbol() }}{{ number_format($month->avg_order_value, 2) }}</td>
                                                 <td class="text-end">{{ number_format($month->order_count / $daysInMonth, 1) }}</td>
                                             </tr>
                                         @endforeach
@@ -234,11 +234,11 @@ function initMonthlyChart() {
                         position: 'left',
                         title: {
                             display: true,
-                            text: 'Revenue (₦)'
+                            text: 'Revenue ({{ currency_label() }})'
                         },
                         ticks: {
                             callback: function(value) {
-                                return '₦' + value.toLocaleString();
+                                return @json(currency_symbol()) + value.toLocaleString();
                             }
                         }
                     },
@@ -248,14 +248,14 @@ function initMonthlyChart() {
                         position: 'right',
                         title: {
                             display: true,
-                            text: 'Commission (₦)'
+                            text: 'Commission ({{ currency_label() }})'
                         },
                         grid: {
                             drawOnChartArea: false,
                         },
                         ticks: {
                             callback: function(value) {
-                                return '₦' + value.toLocaleString();
+                                return @json(currency_symbol()) + value.toLocaleString();
                             }
                         }
                     }
@@ -269,7 +269,7 @@ function initMonthlyChart() {
                                     label += ': ';
                                 }
                                 if (context.parsed.y !== null) {
-                                    label += '₦' + context.parsed.y.toLocaleString();
+                                    label += @json(currency_symbol()) + context.parsed.y.toLocaleString();
                                 }
                                 return label;
                             }

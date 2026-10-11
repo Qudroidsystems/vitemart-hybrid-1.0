@@ -196,8 +196,8 @@
                         @endif
                     </td>
                     <td class="text-center">{{ $item->quantity }}</td>
-                    <td class="text-right">${{ number_format($item->unit_price, 2) }}</td>
-                    <td class="text-right">${{ number_format($item->total_price, 2) }}</td>
+                    <td class="text-right">{{ currency_symbol() }}{{ number_format($item->unit_price, 2) }}</td>
+                    <td class="text-right">{{ currency_symbol() }}{{ number_format($item->total_price, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -209,7 +209,7 @@
     <table style="font-size:13px;">
         <tr class="total-row">
             <td style="text-align:left;"><strong>TOTAL</strong></td>
-            <td style="text-align:right;"><strong>${{ number_format($order->total_amount, 2) }}</strong></td>
+            <td style="text-align:right;"><strong>{{ currency_symbol() }}{{ number_format($order->total_amount, 2) }}</strong></td>
         </tr>
     </table>
 

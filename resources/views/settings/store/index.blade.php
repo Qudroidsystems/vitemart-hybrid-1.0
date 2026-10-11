@@ -76,7 +76,7 @@
                                             <table class="table table-borderless table-sm mb-0">
                                                 <tr>
                                                     <td class="fw-medium">Currency:</td>
-                                                    <td>{{ $setting?->currency_symbol ?? '$' }} ({{ $setting?->currency_code ?? 'USD' }})</td>
+                                                    <td><span class="badge bg-success-subtle text-success fs-6 me-1">{{ currency_label() }}</span> {{ config('currencies.' . currency_code() . '.0', currency_code()) }} ({{ currency_code() }}) <span class="text-muted ms-2">e.g. {{ money(1250) }}</span></td>
                                                 </tr>
                                                 <tr>
                                                     <td class="fw-medium">Phone:</td>
@@ -152,79 +152,51 @@
 
                 <!-- Scrollable Body -->
                 <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-bottom: 2rem;">
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-12">
-                            <label class="form-label">Currency <span class="text-danger">*</span></label>
-                            <select name="currency_code" class="form-select" required size="12">
-                                @php
-                                    $currencies = [
-                                        ['code' => 'USD', 'symbol' => '$', 'name' => 'United States Dollar'],
-                                        ['code' => 'EUR', 'symbol' => '€', 'name' => 'Euro'],
-                                        ['code' => 'GBP', 'symbol' => '£', 'name' => 'British Pound Sterling'],
-                                        ['code' => 'JPY', 'symbol' => '¥', 'name' => 'Japanese Yen'],
-                                        ['code' => 'AUD', 'symbol' => '$', 'name' => 'Australian Dollar'],
-                                        ['code' => 'CAD', 'symbol' => '$', 'name' => 'Canadian Dollar'],
-                                        ['code' => 'CHF', 'symbol' => 'Fr', 'name' => 'Swiss Franc'],
-                                        ['code' => 'CNY', 'symbol' => '¥', 'name' => 'Chinese Yuan'],
-                                        ['code' => 'INR', 'symbol' => '₹', 'name' => 'Indian Rupee'],
-                                        ['code' => 'BRL', 'symbol' => 'R$', 'name' => 'Brazilian Real'],
-                                        ['code' => 'RUB', 'symbol' => '₽', 'name' => 'Russian Ruble'],
-                                        ['code' => 'KRW', 'symbol' => '₩', 'name' => 'South Korean Won'],
-                                        ['code' => 'MXN', 'symbol' => '$', 'name' => 'Mexican Peso'],
-                                        ['code' => 'ZAR', 'symbol' => 'R', 'name' => 'South African Rand'],
-                                        ['code' => 'TRY', 'symbol' => '₺', 'name' => 'Turkish Lira'],
-                                        ['code' => 'SGD', 'symbol' => '$', 'name' => 'Singapore Dollar'],
-                                        ['code' => 'HKD', 'symbol' => '$', 'name' => 'Hong Kong Dollar'],
-                                        ['code' => 'NZD', 'symbol' => '$', 'name' => 'New Zealand Dollar'],
-                                        ['code' => 'SEK', 'symbol' => 'kr', 'name' => 'Swedish Krona'],
-                                        ['code' => 'NOK', 'symbol' => 'kr', 'name' => 'Norwegian Krone'],
-                                        ['code' => 'PLN', 'symbol' => 'zł', 'name' => 'Polish Zloty'],
-                                        ['code' => 'THB', 'symbol' => '฿', 'name' => 'Thai Baht'],
-                                        ['code' => 'IDR', 'symbol' => 'Rp', 'name' => 'Indonesian Rupiah'],
-                                        ['code' => 'MYR', 'symbol' => 'RM', 'name' => 'Malaysian Ringgit'],
-                                        ['code' => 'PHP', 'symbol' => '₱', 'name' => 'Philippine Peso'],
-                                        ['code' => 'VND', 'symbol' => '₫', 'name' => 'Vietnamese Dong'],
-                                        ['code' => 'EGP', 'symbol' => '£', 'name' => 'Egyptian Pound'],
-                                        ['code' => 'SAR', 'symbol' => '﷼', 'name' => 'Saudi Riyal'],
-                                        ['code' => 'AED', 'symbol' => 'د.إ', 'name' => 'UAE Dirham'],
-                                        ['code' => 'ILS', 'symbol' => '₪', 'name' => 'Israeli New Shekel'],
-                                        ['code' => 'COP', 'symbol' => '$', 'name' => 'Colombian Peso'],
-                                        ['code' => 'CLP', 'symbol' => '$', 'name' => 'Chilean Peso'],
-                                        ['code' => 'ARS', 'symbol' => '$', 'name' => 'Argentine Peso'],
-                                        ['code' => 'CZK', 'symbol' => 'Kč', 'name' => 'Czech Koruna'],
-                                        ['code' => 'HUF', 'symbol' => 'Ft', 'name' => 'Hungarian Forint'],
-                                        ['code' => 'DKK', 'symbol' => 'kr', 'name' => 'Danish Krone'],
-                                        ['code' => 'PKR', 'symbol' => '₨', 'name' => 'Pakistani Rupee'],
-                                        ['code' => 'BDT', 'symbol' => '৳', 'name' => 'Bangladeshi Taka'],
-                                        ['code' => 'NGN', 'symbol' => '₦', 'name' => 'Nigerian Naira'],
-                                        ['code' => 'KES', 'symbol' => 'KSh', 'name' => 'Kenyan Shilling'],
-                                        ['code' => 'GHS', 'symbol' => '₵', 'name' => 'Ghanaian Cedi'],
-                                        ['code' => 'UAH', 'symbol' => '₴', 'name' => 'Ukrainian Hryvnia'],
-                                        ['code' => 'RON', 'symbol' => 'lei', 'name' => 'Romanian Leu'],
-                                        ['code' => 'BGN', 'symbol' => 'лв', 'name' => 'Bulgarian Lev'],
-                                        ['code' => 'HRK', 'symbol' => 'kn', 'name' => 'Croatian Kuna'],
-                                        ['code' => 'RSD', 'symbol' => 'дин', 'name' => 'Serbian Dinar'],
-                                        ['code' => 'TWD', 'symbol' => 'NT$', 'name' => 'New Taiwan Dollar'],
-                                        ['code' => 'KWD', 'symbol' => 'د.ك', 'name' => 'Kuwaiti Dinar'],
-                                        ['code' => 'QAR', 'symbol' => '﷼', 'name' => 'Qatari Rial'],
-                                        ['code' => 'OMR', 'symbol' => '﷼', 'name' => 'Omani Rial'],
-                                    ];
-                                @endphp
-
-                                @foreach($currencies as $currency)
-                                    <option value="{{ $currency['code'] }}"
-                                            data-symbol="{{ $currency['symbol'] }}"
-                                            {{ old('currency_code', $setting?->currency_code) == $currency['code'] ? 'selected' : '' }}>
-                                        {{ $currency['symbol'] }} {{ $currency['code'] }} - {{ $currency['name'] }}
-                                    </option>
+                    @php
+                        $currencyList = config('currencies', []);
+                        $currentCode = strtoupper(old('currency_code', $setting?->currency_code ?: 'NGN'));
+                        $currentSymbol = old('currency_symbol', $setting?->currency_symbol ?: ($currencyList[$currentCode][2][0] ?? '₦'));
+                        if (!isset($currencyList[$currentCode])) {
+                            $currencyList[$currentCode] = [$currentCode, 'Other', [$currentSymbol]];
+                        }
+                        $regions = collect($currencyList)->map(fn ($c, $code) => ['code' => $code, 'name' => $c[0], 'region' => $c[1], 'symbols' => $c[2]])->groupBy('region');
+                    @endphp
+                    <div class="row g-4 mb-4 currency-picker">
+                        <div class="col-lg-7">
+                            <label class="form-label fw-semibold" for="currencySelect">Currency <span class="text-danger">*</span></label>
+                            <div class="input-group mb-2">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="search" id="currencySearch" class="form-control" placeholder="Search: naira, cedi, NGN, KES, euro…" autocomplete="off">
+                            </div>
+                            <select name="currency_code" id="currencySelect" class="form-select" required size="9">
+                                @foreach ($regions as $region => $items)
+                                    <optgroup label="{{ $region }}">
+                                        @foreach ($items as $c)
+                                            <option value="{{ $c['code'] }}" data-symbols='@json($c['symbols'])' data-search="{{ strtolower($c['code'] . ' ' . $c['name'] . ' ' . implode(' ', $c['symbols'])) }}" @selected($currentCode === $c['code'])>
+                                                {{ $c['symbols'][0] }} &nbsp; {{ $c['code'] }} – {{ $c['name'] }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
-                            <small class="text-muted d-block mt-1">Scroll inside the list to view all currencies</small>
+                            <small class="text-muted d-block mt-1" id="currencyNoMatch" style="display:none!important">No currency matches your search.</small>
+                        </div>
+                        <div class="col-lg-5">
+                            <label class="form-label fw-semibold">Symbol to show on prices <span class="text-danger">*</span></label>
+                            <div class="d-flex flex-wrap gap-2 mb-2" id="symbolChoices" role="radiogroup" aria-label="Currency symbol"></div>
+                            <div class="input-group">
+                                <span class="input-group-text">Or type your own</span>
+                                <input type="text" id="customSymbol" class="form-control" maxlength="10" placeholder="e.g. N" autocomplete="off">
+                            </div>
+                            <div class="rounded-3 border bg-light p-3 mt-3">
+                                <div class="text-muted small mb-1">Prices will look like this</div>
+                                <div class="fs-3 fw-bold" id="currencyPreview">–</div>
+                                <div class="small text-muted" id="currencyPreviewLabel"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Hidden currency symbol field -->
-                    <input type="hidden" name="currency_symbol" id="currency_symbol" value="{{ old('currency_symbol', $setting?->currency_symbol) }}">
+                    <input type="hidden" name="currency_symbol" id="currency_symbol" value="{{ $currentSymbol }}">
 
                     <!-- Other Form Fields -->
                     <div class="row g-3">
@@ -293,22 +265,79 @@
     </div>
 </div>
 
-<!-- JavaScript for currency symbol sync -->
+<style>
+    .currency-picker #currencySelect { font-size: 14px; }
+    .currency-picker #currencySelect option { padding: 4px 6px; }
+    .currency-picker .sym-btn { min-width: 64px; font-weight: 700; font-size: 16px; }
+    .currency-picker .sym-btn small { display: block; font-weight: 400; font-size: 11px; opacity: .75; }
+</style>
+<!-- Currency picker: choose a currency, then the symbol shown on prices -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const currencySelect = document.querySelector('select[name="currency_code"]');
-        const symbolInput = document.getElementById('currency_symbol');
+        const select = document.getElementById('currencySelect');
+        const search = document.getElementById('currencySearch');
+        const choices = document.getElementById('symbolChoices');
+        const custom = document.getElementById('customSymbol');
+        const hidden = document.getElementById('currency_symbol');
+        const preview = document.getElementById('currencyPreview');
+        const previewLabel = document.getElementById('currencyPreviewLabel');
+        const noMatch = document.getElementById('currencyNoMatch');
+        if (!select) return;
 
-        function updateSymbol() {
-            const selectedOption = currencySelect.options[currencySelect.selectedIndex];
-            symbolInput.value = selectedOption.dataset.symbol || '';
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+        // Same rule as the server: letter symbols of 2+ characters get a space (NGN 1,250.00)
+        const prefix = sym => (sym.length >= 2 && /\p{L}$/u.test(sym)) ? sym + ' ' : sym;
+        const symbolsOf = opt => { try { return JSON.parse(opt.dataset.symbols || '[]'); } catch (e) { return []; } };
+
+        function render(keepCurrent) {
+            const opt = select.options[select.selectedIndex];
+            if (!opt) return;
+            const list = symbolsOf(opt);
+            let current = keepCurrent ? hidden.value.trim() : '';
+            if (!current) current = list[0] || opt.value;
+            const isCustom = !list.includes(current);
+            choices.innerHTML = list.map((sym, i) => `
+                <input type="radio" class="btn-check" name="symbolChoice" id="sym${i}" value="${esc(sym)}" ${!isCustom && sym === current ? 'checked' : ''}>
+                <label class="btn btn-outline-primary sym-btn" for="sym${i}">${esc(sym)}<small>${esc(prefix(sym))}100</small></label>`).join('');
+            custom.value = isCustom ? current : '';
+            setSymbol(current);
+        }
+        function setSymbol(sym) {
+            sym = String(sym || '').trim();
+            hidden.value = sym;
+            const opt = select.options[select.selectedIndex];
+            preview.textContent = sym ? prefix(sym) + (1250).toLocaleString(undefined, {minimumFractionDigits: 2}) : '–';
+            previewLabel.textContent = opt ? opt.value + ' – ' + opt.textContent.split('–').slice(1).join('–').trim() : '';
         }
 
-        // Initial sync
-        updateSymbol();
+        select.addEventListener('change', () => { hidden.value = ''; render(false); });
+        choices.addEventListener('change', e => { if (e.target.name === 'symbolChoice') { custom.value = ''; setSymbol(e.target.value); } });
+        custom.addEventListener('input', () => {
+            const v = custom.value.trim();
+            choices.querySelectorAll('input').forEach(r => r.checked = v === '' ? r.value === symbolsOf(select.options[select.selectedIndex])[0] : false);
+            setSymbol(v || (symbolsOf(select.options[select.selectedIndex])[0] || ''));
+        });
+        search.addEventListener('input', () => {
+            const q = search.value.trim().toLowerCase();
+            let shown = 0, first = null;
+            select.querySelectorAll('optgroup').forEach(g => {
+                let any = false;
+                g.querySelectorAll('option').forEach(o => {
+                    const hit = !q || o.dataset.search.includes(q);
+                    o.hidden = !hit; any = any || hit;
+                    if (hit) { shown++; first = first || o; }
+                });
+                g.hidden = !any;
+            });
+            noMatch.style.setProperty('display', shown ? 'none' : 'block', 'important');
+            if (q && first && select.selectedOptions[0]?.hidden) { first.selected = true; hidden.value = ''; render(false); }
+        });
+        search.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); select.focus(); } });
 
-        // Update on change
-        currencySelect.addEventListener('change', updateSymbol);
+        // Keep the saved symbol (it may be a custom one) when the form opens
+        render(true);
+        const modal = document.getElementById('editStoreModal');
+        modal?.addEventListener('shown.bs.modal', () => select.selectedOptions[0]?.scrollIntoView({block: 'center'}));
     });
 </script>
 @endsection

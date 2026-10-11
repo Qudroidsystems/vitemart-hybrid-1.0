@@ -42,15 +42,15 @@
     <div class="summary">
         <div style="display: flex; justify-content: space-around; text-align: center;">
             <div>
-                <h3 style="margin: 0; color: #28a745;">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($paidCommission, 2) }}</h3>
+                <h3 style="margin: 0; color: #28a745;">{{ currency_symbol() }}{{ number_format($paidCommission, 2) }}</h3>
                 <p style="margin: 5px 0 0 0; font-size: 10px;">Paid Commission</p>
             </div>
             <div>
-                <h3 style="margin: 0; color: #ffc107;">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($pendingCommission, 2) }}</h3>
+                <h3 style="margin: 0; color: #ffc107;">{{ currency_symbol() }}{{ number_format($pendingCommission, 2) }}</h3>
                 <p style="margin: 5px 0 0 0; font-size: 10px;">Pending Commission</p>
             </div>
             <div>
-                <h3 style="margin: 0; color: #007bff;">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</h3>
+                <h3 style="margin: 0; color: #007bff;">{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</h3>
                 <p style="margin: 5px 0 0 0; font-size: 10px;">Total Commission</p>
             </div>
         </div>
@@ -74,8 +74,8 @@
                 <td>#{{ $commission->id }}</td>
                 <td>{{ $commission->order_date->format('M d, Y') }}</td>
                 <td>{{ $commission->customer->name ?? 'Guest' }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($commission->total_amount, 2) }}</td>
-                <td class="text-right">{{ $settings->currency_symbol ?? '₦' }}{{ number_format($commission->commission_amount, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($commission->total_amount, 2) }}</td>
+                <td class="text-right">{{ currency_symbol() }}{{ number_format($commission->commission_amount, 2) }}</td>
                 <td>
                     @if($commission->commission_paid)
                         <span style="background-color: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px;">PAID</span>
@@ -96,8 +96,8 @@
         <tfoot>
             <tr class="total-row">
                 <td colspan="3"><strong>TOTAL</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($commissions->sum('total_amount'), 2) }}</strong></td>
-                <td class="text-right"><strong>{{ $settings->currency_symbol ?? '₦' }}{{ number_format($totalCommission, 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($commissions->sum('total_amount'), 2) }}</strong></td>
+                <td class="text-right"><strong>{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</strong></td>
                 <td colspan="2"></td>
             </tr>
         </tfoot>

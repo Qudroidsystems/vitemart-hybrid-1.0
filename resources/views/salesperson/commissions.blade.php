@@ -29,7 +29,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Total Commission</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($summary['total'], 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($summary['total'], 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-success rounded-circle fs-3">
@@ -46,7 +46,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Paid Commission</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($summary['paid'], 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($summary['paid'], 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-info rounded-circle fs-3">
@@ -63,7 +63,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Pending Commission</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($summary['pending'], 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($summary['pending'], 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-warning rounded-circle fs-3">
@@ -106,9 +106,9 @@
                                             <td>#{{ $commission->id }}</td>
                                             <td>{{ $commission->order_date->format('M d, Y') }}</td>
                                             <td>{{ $commission->customer->name ?? 'Guest' }}</td>
-                                            <td class="text-end">₦{{ number_format($commission->total_amount, 2) }}</td>
+                                            <td class="text-end">{{ currency_symbol() }}{{ number_format($commission->total_amount, 2) }}</td>
                                             <td class="text-end fw-bold text-success">
-                                                ₦{{ number_format($commission->commission_amount, 2) }}
+                                                {{ currency_symbol() }}{{ number_format($commission->commission_amount, 2) }}
                                             </td>
                                             <td>{{ ucfirst($commission->payment_method) }}</td>
                                             <td>
@@ -131,8 +131,8 @@
                                 <tfoot>
                                     <tr class="table-light">
                                         <td colspan="3" class="text-end fw-bold">Totals:</td>
-                                        <td class="text-end fw-bold">₦{{ number_format($commissions->sum('total_amount'), 2) }}</td>
-                                        <td class="text-end fw-bold">₦{{ number_format($commissions->sum('commission_amount'), 2) }}</td>
+                                        <td class="text-end fw-bold">{{ currency_symbol() }}{{ number_format($commissions->sum('total_amount'), 2) }}</td>
+                                        <td class="text-end fw-bold">{{ currency_symbol() }}{{ number_format($commissions->sum('commission_amount'), 2) }}</td>
                                         <td colspan="3"></td>
                                     </tr>
                                 </tfoot>

@@ -257,7 +257,7 @@ class Stock extends Model
     public function getFormattedCostAttribute()
     {
         if ($this->total_cost) {
-            return '$' . number_format($this->total_cost, 2);
+            return currency_symbol() . number_format($this->total_cost, 2);
         }
         return null;
     }

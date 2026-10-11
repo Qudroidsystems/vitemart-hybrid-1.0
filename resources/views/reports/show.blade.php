@@ -242,13 +242,13 @@
                                     <!-- Price Section -->
                                     <div class="mb-4">
                                         @if($product->sale_price)
-                                            <h3 class="text-danger fw-bold mb-0">${{ number_format($product->sale_price, 2) }}</h3>
-                                            <del class="text-muted fs-5">${{ number_format($product->price, 2) }}</del>
+                                            <h3 class="text-danger fw-bold mb-0">{{ currency_symbol() }}{{ number_format($product->sale_price, 2) }}</h3>
+                                            <del class="text-muted fs-5">{{ currency_symbol() }}{{ number_format($product->price, 2) }}</del>
                                             <span class="badge bg-success ms-2">
                                                 {{ round((($product->price - $product->sale_price) / $product->price) * 100) }}% OFF
                                             </span>
                                         @else
-                                            <h3 class="fw-bold">${{ number_format($product->price, 2) }}</h3>
+                                            <h3 class="fw-bold">{{ currency_symbol() }}{{ number_format($product->price, 2) }}</h3>
                                         @endif
                                     </div>
 
@@ -362,7 +362,7 @@
                                                         <p class="mb-0 text-white-50">Sale Active</p>
                                                     </div>
                                                     <div class="flex-shrink-0">
-                                                        <button type="button" class="btn btn-light">Save ${{ number_format($product->price - $product->sale_price, 2) }}</button>
+                                                        <button type="button" class="btn btn-light">Save {{ currency_symbol() }}{{ number_format($product->price - $product->sale_price, 2) }}</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -374,7 +374,7 @@
                                                         <div class="card-body p-2">
                                                             <div class="text-center">
                                                                 <p class="text-muted text-truncate mb-2">PRICE</p>
-                                                                <h6 class="fs-lg">${{ number_format($product->sale_price ?? $product->price, 2) }}</h6>
+                                                                <h6 class="fs-lg">{{ currency_symbol() }}{{ number_format($product->sale_price ?? $product->price, 2) }}</h6>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -404,7 +404,7 @@
                                                         <div class="card-body p-2">
                                                             <div class="text-center">
                                                                 <p class="text-muted text-truncate mb-2">Total Revenue</p>
-                                                                <h6 class="fs-lg">${{ number_format($revenue, 2) }}</h6>
+                                                                <h6 class="fs-lg">{{ currency_symbol() }}{{ number_format($revenue, 2) }}</h6>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -466,12 +466,12 @@
                                         </tr>
                                         <tr>
                                             <th>Price</th>
-                                            <td>${{ number_format($product->price, 2) }}</td>
+                                            <td>{{ currency_symbol() }}{{ number_format($product->price, 2) }}</td>
                                         </tr>
                                         @if($product->sale_price)
                                         <tr>
                                             <th>Sale Price</th>
-                                            <td class="text-danger fw-bold">${{ number_format($product->sale_price, 2) }}</td>
+                                            <td class="text-danger fw-bold">{{ currency_symbol() }}{{ number_format($product->sale_price, 2) }}</td>
                                         </tr>
                                         @endif
                                         <tr>
@@ -677,12 +677,12 @@
                                                 <code class="text-dark">{{ $variation->sku ?? 'N/A' }}</code>
                                             </td>
                                             <td>
-                                                <strong>${{ number_format($variation->price, 2) }}</strong>
+                                                <strong>{{ currency_symbol() }}{{ number_format($variation->price, 2) }}</strong>
                                             </td>
                                             <td>
                                                 @if($variation->sale_price)
                                                     <span class="text-danger fw-bold">
-                                                        ${{ number_format($variation->sale_price, 2) }}
+                                                        {{ currency_symbol() }}{{ number_format($variation->sale_price, 2) }}
                                                     </span>
                                                     <br>
                                                     <small class="badge bg-success">
@@ -741,7 +741,7 @@
                                         <div class="card-body text-center">
                                             <h6 class="text-muted mb-2">Lowest Price</h6>
                                             <h4 class="mb-0 text-success">
-                                                ${{ number_format($product->variations->min(function($v) {
+                                                {{ currency_symbol() }}{{ number_format($product->variations->min(function($v) {
                                                     return $v->sale_price ?? $v->price;
                                                 }), 2) }}
                                             </h4>
@@ -753,7 +753,7 @@
                                         <div class="card-body text-center">
                                             <h6 class="text-muted mb-2">Highest Price</h6>
                                             <h4 class="mb-0 text-primary">
-                                                ${{ number_format($product->variations->max('price'), 2) }}
+                                                {{ currency_symbol() }}{{ number_format($product->variations->max('price'), 2) }}
                                             </h4>
                                         </div>
                                     </div>

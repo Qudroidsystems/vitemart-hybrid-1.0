@@ -30,7 +30,7 @@
                                 <div class="row mt-2">
                                     <div class="col-md-3">
                                         <small class="text-muted">Total Revenue:</small>
-                                        <div class="fw-bold">₦{{ number_format($dateRangeSummary['total_revenue'], 2) }}</div>
+                                        <div class="fw-bold">{{ currency_symbol() }}{{ number_format($dateRangeSummary['total_revenue'], 2) }}</div>
                                     </div>
                                     <div class="col-md-3">
                                         <small class="text-muted">Total Sales:</small>
@@ -38,11 +38,11 @@
                                     </div>
                                     <div class="col-md-3">
                                         <small class="text-muted">Average Sale:</small>
-                                        <div class="fw-bold">₦{{ number_format($dateRangeSummary['average_sale'], 2) }}</div>
+                                        <div class="fw-bold">{{ currency_symbol() }}{{ number_format($dateRangeSummary['average_sale'], 2) }}</div>
                                     </div>
                                     <div class="col-md-3">
                                         <small class="text-muted">Total Commission:</small>
-                                        <div class="fw-bold">₦{{ number_format($dateRangeSummary['total_commission'], 2) }}</div>
+                                        <div class="fw-bold">{{ currency_symbol() }}{{ number_format($dateRangeSummary['total_commission'], 2) }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -62,7 +62,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Total Revenue</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($totalRevenue, 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($totalRevenue, 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-success rounded-circle fs-3">
@@ -96,7 +96,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Total Commission</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($totalCommission, 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($totalCommission, 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-success rounded-circle fs-3">
@@ -113,7 +113,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="flex-grow-1">
                                     <p class="text-uppercase fw-medium text-muted mb-0">Pending Commission</p>
-                                    <h4 class="fs-22 fw-semibold mb-0">₦{{ number_format($commissions['pending'], 2) }}</h4>
+                                    <h4 class="fs-22 fw-semibold mb-0">{{ currency_symbol() }}{{ number_format($commissions['pending'], 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm flex-shrink-0">
                                     <span class="avatar-title bg-warning rounded-circle fs-3">
@@ -202,7 +202,7 @@
                                             <span>{{ $p->name }}</span>
                                         </div>
                                         <div class="text-end">
-                                            <strong>₦{{ number_format($p->revenue, 0) }}</strong><br>
+                                            <strong>{{ currency_symbol() }}{{ number_format($p->revenue, 0) }}</strong><br>
                                             <small class="text-muted">{{ $p->order_count }} sales</small>
                                         </div>
                                     </li>
@@ -274,8 +274,8 @@
                                         </td>
                                         <td>{{ $sale->customer->name ?? 'Guest' }}</td>
                                         <td>{{ $sale->items->count() }}</td>
-                                        <td>₦{{ number_format($sale->total_amount, 2) }}</td>
-                                        <td>₦{{ number_format($sale->commission_amount ?? 0, 2) }}</td>
+                                        <td>{{ currency_symbol() }}{{ number_format($sale->total_amount, 2) }}</td>
+                                        <td>{{ currency_symbol() }}{{ number_format($sale->commission_amount ?? 0, 2) }}</td>
                                         <td><span class="badge bg-{{ $sale->payment_method == 'cash' ? 'success' : ($sale->payment_method == 'card' ? 'info' : ($sale->payment_method == 'transfer' ? 'warning' : 'danger')) }}">{{ ucfirst($sale->payment_method) }}</span></td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary view-order-btn"
@@ -399,7 +399,7 @@ function initCharts() {
             data: {
                 labels: months,
                 datasets: [{
-                    label: 'Revenue (₦)',
+                    label: 'Revenue ({{ currency_label() }})',
                     data: values,
                     borderColor: '#0d6efd',
                     backgroundColor: 'rgba(13, 110, 253, 0.1)',
@@ -418,7 +418,7 @@ function initCharts() {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return '₦' + context.parsed.y.toLocaleString();
+                                return @json(currency_symbol()) + context.parsed.y.toLocaleString();
                             }
                         }
                     }
@@ -428,7 +428,7 @@ function initCharts() {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return '₦' + value.toLocaleString();
+                                return @json(currency_symbol()) + value.toLocaleString();
                             }
                         }
                     }
@@ -471,7 +471,7 @@ function initCharts() {
                                 const value = context.parsed;
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                 const percentage = Math.round((value / total) * 100);
-                                return `${context.label}: ₦${value.toLocaleString()} (${percentage}%)`;
+                                return `${context.label}: {{ currency_symbol() }}${value.toLocaleString()} (${percentage}%)`;
                             }
                         }
                     }
@@ -552,11 +552,11 @@ function loadOrderDetails(orderId) {
                                         </tr>
                                         <tr>
                                             <th>Total Amount:</th>
-                                            <td class="fw-bold">₦${parseFloat(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                            <td class="fw-bold">{{ currency_symbol() }}${parseFloat(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                         </tr>
                                         <tr>
                                             <th>Commission:</th>
-                                            <td class="fw-bold text-success">₦${parseFloat(order.commission_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                            <td class="fw-bold text-success">{{ currency_symbol() }}${parseFloat(order.commission_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -629,8 +629,8 @@ function loadOrderDetails(orderId) {
                                 <td>${index + 1}</td>
                                 <td>${productName}</td>
                                 <td>${quantity}</td>
-                                <td>₦${unitPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                                <td>₦${itemTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                <td>{{ currency_symbol() }}${unitPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                <td>{{ currency_symbol() }}${itemTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             </tr>
                         `;
                     });
@@ -640,15 +640,15 @@ function loadOrderDetails(orderId) {
                                         <tfoot>
                                             <tr>
                                                 <td colspan="4" class="text-end fw-bold">Items Total:</td>
-                                                <td class="fw-bold">₦${itemsTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                <td class="fw-bold">{{ currency_symbol() }}${itemsTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                             </tr>
                                             <tr>
                                                 <td colspan="4" class="text-end">Tax/VAT:</td>
-                                                <td>₦0.00</td>
+                                                <td>{{ currency_symbol() }}0.00</td>
                                             </tr>
                                             <tr>
                                                 <td colspan="4" class="text-end fw-bold">Grand Total:</td>
-                                                <td class="fw-bold text-success">₦${parseFloat(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                <td class="fw-bold text-success">{{ currency_symbol() }}${parseFloat(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                             </tr>
                                         </tfoot>
                                     </table>

@@ -64,7 +64,7 @@
                             <div class="d-flex">
                                 <div class="flex-grow-1">
                                     <p class="text-muted fw-medium">Total Value</p>
-                                    <h4 class="mb-0">₦{{ number_format($totalValue, 2) }}</h4>
+                                    <h4 class="mb-0">{{ currency_symbol() }}{{ number_format($totalValue, 2) }}</h4>
                                 </div>
                                 <div class="avatar-sm rounded-circle bg-info align-self-center mini-stat-icon">
                                     <span class="avatar-title rounded-circle bg-info">
@@ -170,7 +170,7 @@
                                             {{ number_format($customer->points->points ?? 0) }}
                                         </td>
                                         <td class="text-center fw-bold text-success">
-                                            ₦{{ number_format(($customer->points->points ?? 0) / config('loyalty.redeem_rate', 100), 2) }}
+                                            {{ currency_symbol() }}{{ number_format(($customer->points->points ?? 0) / config('loyalty.redeem_rate', 100), 2) }}
                                         </td>
                                         <td class="text-center">{{ $customer->created_at->format('d M Y') }}</td>
                                         <td>

@@ -357,7 +357,7 @@
                     <div class="mb-3">
                         <label class="form-label">Unit Cost</label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ currency_label() }}</span>
                             <input type="number" step="0.01" name="unit_cost" id="unit_cost" class="form-control" min="0">
                         </div>
                         <small class="text-muted">Leave blank to use product price</small>
