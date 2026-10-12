@@ -4,6 +4,9 @@ return [
     // Application release; compared between HQ and branches during upgrades.
     'version' => '2026.11.0',
 
+    // Head office refuses sync from branches older than this (they must run vitemart:upgrade first).
+    'min_branch_version' => env('VITEMART_MIN_BRANCH_VERSION', '2026.11.0'),
+
     // Enrollment codes are valid for this long.
     'enrollment_code_ttl_hours' => 24,
 

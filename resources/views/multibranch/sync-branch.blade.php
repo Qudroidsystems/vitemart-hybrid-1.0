@@ -29,6 +29,7 @@
         @if (empty($standalone))
             @can('Manage sync')
                 <div class="d-flex gap-2">
+                    <button class="btn btn-light btn-sm" id="backupNow"><i class="bi bi-hdd me-1"></i>Back up now</button>
                     <button class="btn btn-light btn-sm" id="resync"><i class="bi bi-cloud-download me-1"></i>Download catalogue again</button>
                     <button class="btn btn-primary btn-sm" id="syncNow"><span class="spinner-border spinner-border-sm me-1 d-none"></span><i class="bi bi-arrow-repeat me-1"></i>Sync now</button>
                 </div>
@@ -119,6 +120,26 @@
                     @endforelse
                 </ul>
             </div>
+            @php
+                $__bk = \Illuminate\Support\Facades\Schema::hasTable('backup_runs') ? \Illuminate\Support\Facades\DB::table('backup_runs')->orderByDesc('id')->limit(5)->get() : collect();
+                $__up = \Illuminate\Support\Facades\Schema::hasTable('upgrade_runs') ? \Illuminate\Support\Facades\DB::table('upgrade_runs')->orderByDesc('id')->first() : null;
+            @endphp
+            <div class="card">
+                <div class="card-header"><h6 class="card-title mb-0">Backups &amp; upgrades</h6></div>
+                <ul class="list-group list-group-flush">
+                    @forelse ($__bk as $bk)
+                        <li class="list-group-item fs-sm d-flex justify-content-between">
+                            <span>{{ \Carbon\Carbon::parse($bk->finished_at ?? $bk->started_at)->diffForHumans() }} · {{ $bk->kind }}</span>
+                            <span class="{{ $bk->status === 'ok' ? 'text-success' : 'text-danger' }}">{{ $bk->status === 'ok' ? number_format(($bk->size_bytes ?? 0) / 1048576, 1) . ' MB' : $bk->status }}</span>
+                        </li>
+                    @empty
+                        <li class="list-group-item text-danger fs-sm">No backup yet.</li>
+                    @endforelse
+                    @if ($__up)
+                        <li class="list-group-item fs-sm">Last upgrade: {{ $__up->to_version }} · <span class="{{ $__up->status === 'ok' ? 'text-success' : 'text-danger' }}">{{ str_replace('_', ' ', $__up->status) }}</span> · {{ \Carbon\Carbon::parse($__up->started_at)->diffForHumans() }}</li>
+                    @endif
+                </ul>
+            </div>
             <div class="card">
                 <div class="card-header"><h6 class="card-title mb-0">Instructions from head office</h6></div>
                 <ul class="list-group list-group-flush">
@@ -149,6 +170,10 @@
     document.getElementById('resync')?.addEventListener('click', async () => {
         if (!await VM.confirm('Download the catalogue again?', 'Everything head office sends (products, prices, staff, settings) is applied again. Sales are not affected.')) return;
         try { await post(@json(route('mb.sync.resync'))); } catch (err) { VM.error(err); }
+    });
+    document.getElementById('backupNow')?.addEventListener('click', async e => {
+        e.currentTarget.disabled = true;
+        try { await post(@json(route('mb.sync.backup'))); } catch (err) { VM.error(err); e.currentTarget.disabled = false; }
     });
     document.getElementById('retryAll')?.addEventListener('click', async () => { try { await post(@json(route('mb.sync.retry'))); } catch (err) { VM.error(err); } });
     document.addEventListener('click', async e => {

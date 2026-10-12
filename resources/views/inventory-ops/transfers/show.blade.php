@@ -73,7 +73,7 @@
                         <td class="text-end">{{ $fmt($l, $l->requested_qty) }}</td>
                         <td class="text-end">{{ $fmt($l, $l->approved_qty) }}</td>
                         <td class="text-end">{{ $fmt($l, $l->dispatched_qty) }}</td>
-                        <td class="text-end">{{ $fmt($l, $l->received_qty) }}</td>
+                        <td class="text-end">{{ $fmt($l, $l->received_qty) }}@if ((float) $l->damaged_qty > 0)<div class="fs-xs text-warning">+ {{ qty($l->damaged_qty) }} damaged (quarantine)</div>@endif</td>
                         <td class="text-end {{ $l->discrepancy_qty < 0 ? 'text-danger' : ($l->discrepancy_qty > 0 ? 'text-warning' : '') }}">
                             {{ $l->discrepancy_qty != 0 ? ($l->discrepancy_qty > 0 ? '+' : '') . qty($l->discrepancy_qty) : '' }}
                             @if ($l->discrepancy_status !== 'none')
@@ -122,12 +122,14 @@
             const col = b.dataset.col;
             const rows = [...document.querySelectorAll('#lines tbody tr')];
             const html = `<div class="text-start" style="max-height:50vh;overflow:auto"><table class="table table-sm align-middle"><tbody>${rows.map(r => `<tr><td class="fs-sm">${VM.esc(r.querySelector('td .fw-medium').textContent)}<div class="fs-xs text-muted">${VM.esc(r.querySelector('td .fs-xs').textContent)}</div></td>
-                <td style="width:110px"><input type="number" step="any" min="0" class="form-control form-control-sm q" data-uid="${r.dataset.uid}" value="${Number(r.dataset[col === 'approved' ? 'approved' : (col === 'dispatched' ? 'dispatched' : 'received')])}"></td></tr>`).join('')}</tbody></table></div>
+                <td style="width:110px">${act === 'receive' ? '<div class="fs-xs text-muted">good</div>' : ''}<input type="number" step="any" min="0" class="form-control form-control-sm q" data-uid="${r.dataset.uid}" value="${Number(r.dataset[col === 'approved' ? 'approved' : (col === 'dispatched' ? 'dispatched' : 'received')])}"></td>
+                ${act === 'receive' ? `<td style="width:110px"><div class="fs-xs text-muted">damaged</div><input type="number" step="any" min="0" class="form-control form-control-sm dmg" data-uid="${r.dataset.uid}" value="0"></td>` : ''}</tr>`).join('')}</tbody></table></div>
                 ${act === 'dispatch' ? '<input class="form-control mt-2" id="carrier" placeholder="Driver / vehicle / waybill (optional)">' : ''}
                 ${act === 'receive' ? '<input class="form-control mt-2" id="rnote" placeholder="Note (optional) – e.g. 2 cartons damp">' : ''}
                 <div class="fs-xs text-muted mt-2 text-start">Quantities are in the pack shown for each line.</div>`;
             const r = await Swal.fire({title: titles[act], html, width: 640, showCancelButton: true, confirmButtonText: act === 'approve' ? 'Approve' : (act === 'dispatch' ? 'Dispatch' : 'Receive'),
                 preConfirm: () => ({qty: Object.fromEntries([...document.querySelectorAll('.swal2-html-container .q')].map(i => [i.dataset.uid, i.value])),
+                    damaged: Object.fromEntries([...document.querySelectorAll('.swal2-html-container .dmg')].map(i => [i.dataset.uid, i.value])),
                     carrier: document.getElementById('carrier')?.value, note: document.getElementById('rnote')?.value})});
             if (!r.isConfirmed) return;
             body = r.value;

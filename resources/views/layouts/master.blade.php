@@ -509,6 +509,13 @@
 
                         @canany(['View branches', 'Manage branches', 'View sync status', 'Manage sync'])
                             <li class="menu-title"><span data-key="t-menu">Branches</span></li>
+                            @if (\App\Services\MultiBranch\Install::isCentral())
+                                <li class="nav-item">
+                                    <a class="nav-link menu-link {{ request()->routeIs('mb.hq-dashboard*') ? 'active' : '' }}" href="{{ route('mb.hq-dashboard') }}">
+                                        <i class="ph-chart-bar"></i> <span>All branches</span>
+                                    </a>
+                                </li>
+                            @endif
                             <li class="nav-item">
                                 <a class="nav-link menu-link" href="{{ route('mb.branches.index') }}">
                                     <i class="ph-storefront"></i> <span>Branches</span>

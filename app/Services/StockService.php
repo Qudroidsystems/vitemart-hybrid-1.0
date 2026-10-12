@@ -56,9 +56,16 @@ class StockService
     /**
      * Current balance. Pass a variation id to get that variation's balance only.
      */
-    public function balance(int $productId, ?int $variationId = null, ?int $locationId = null): float
+    /**
+     * @param bool $current read the latest committed rows (locking read). Inside a transaction a plain read can see an
+     *                      older snapshot – two tills would both see the last unit.  record() always uses this.
+     */
+    public function balance(int $productId, ?int $variationId = null, ?int $locationId = null, bool $current = false): float
     {
         $q = DB::table('stocks')->where('product_id', $productId)->whereNull('deleted_at');
+        if ($current) {
+            $q->sharedLock();
+        }
         if ($variationId) {
             $q->where('product_variation_id', $variationId);
         }
@@ -103,7 +110,7 @@ class StockService
             // Serialise concurrent sales of the same product.
             $product = Product::query()->whereKey($productId)->lockForUpdate()->firstOrFail();
 
-            $previous = $this->balance($productId, $variationId, $locationId);
+            $previous = $this->balance($productId, $variationId, $locationId, true);
             $new = $direction === 'in' ? $previous + $qty : $previous - $qty;
 
             $allowNegative = $data['allow_negative'] ?? (bool) SystemSetting::get('allow_negative_stock', false);
@@ -127,9 +134,9 @@ class StockService
                 $bal = app(\App\Services\Inventory\InventoryBalances::class);
                 if ($bal->ready() && $bal->sellable($locationId)) {
                     $branchId = $bal->bucketFor($locationId)['branch_id'];
-                    $reserved = $bal->reservedFor($productId, $variationId, $branchId);
+                    $reserved = $bal->reservedFor($productId, $variationId, $branchId, true);
                     if ($reserved > 0) {
-                        $free = $bal->onHand($productId, $variationId, $branchId) - $reserved;
+                        $free = $bal->onHand($productId, $variationId, $branchId, true) - $reserved;
                         if ($free + 0.0001 < $qty) {
                             throw new InsufficientStockException($product->title . ' (some is reserved)', max(0, $free), $qty);
                         }
@@ -217,11 +224,11 @@ class StockService
         $useBalances = $bal->ready() && \App\Services\MultiBranch\Install::branchId();
 
         DB::table('products')->where('id', $productId)
-            ->update(['stock' => $useBalances ? $bal->onHand($productId) : $this->balance($productId)]);
+            ->update(['stock' => $useBalances ? $bal->onHand($productId, null, null, true) : $this->balance($productId, null, null, true)]);
 
         if ($variationId && Schema::hasColumn('product_variations', 'stock')) {
             DB::table('product_variations')->where('id', $variationId)
-                ->update(['stock' => $useBalances ? $bal->onHand($productId, $variationId) : $this->balance($productId, $variationId)]);
+                ->update(['stock' => $useBalances ? $bal->onHand($productId, $variationId, null, true) : $this->balance($productId, $variationId, null, true)]);
         }
     }
 

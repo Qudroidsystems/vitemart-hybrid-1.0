@@ -112,6 +112,18 @@ class SyncController extends Controller
         return response()->json(['success' => true, 'message' => 'The catalogue will be downloaded again on the next sync (within a minute).']);
     }
 
+    /** Back up this server's database now. */
+    public function backup(\App\Services\Operations\BackupService $backups)
+    {
+        try {
+            $run = $backups->dump('manual');
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Backup failed: ' . $e->getMessage()], 500);
+        }
+        AuditLogger::log('backup', 'Database backed up (' . basename($run->path) . ')', 'system');
+        return response()->json(['success' => true, 'message' => 'Backed up (' . number_format($run->size_bytes / 1048576, 1) . ' MB).']);
+    }
+
     /** Head office: send a command to a branch server. */
     public function command(Request $request, Branch $branch)
     {

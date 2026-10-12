@@ -81,27 +81,39 @@ class InventoryBalances
     }
 
     /** Sellable stock for this branch (all variations when $variationId is null). */
-    public function onHand(int $productId, ?int $variationId = null, ?int $branchId = null): float
+    /** @param bool $current read the latest committed figure (locking read) – use inside a stock-changing transaction */
+    public function onHand(int $productId, ?int $variationId = null, ?int $branchId = null, bool $current = false): float
     {
         $q = DB::table('inventory_balances')->where('branch_id', $branchId ?? Install::branchId())->where('product_id', $productId);
+        if ($current) {
+            $q->sharedLock();
+        }
         if ($variationId) {
             $q->where('variation_key', $variationId);
         }
         return round((float) $q->sum('on_hand'), 3);
     }
 
-    public function available(int $productId, ?int $variationId = null, ?int $branchId = null): float
+    /** @param bool $current read the latest committed figure (locking read) – use inside a stock-changing transaction */
+    public function available(int $productId, ?int $variationId = null, ?int $branchId = null, bool $current = false): float
     {
         $q = DB::table('inventory_balances')->where('branch_id', $branchId ?? Install::branchId())->where('product_id', $productId);
+        if ($current) {
+            $q->sharedLock();
+        }
         if ($variationId) {
             $q->where('variation_key', $variationId);
         }
         return round((float) $q->sum(DB::raw('on_hand - reserved')), 3);
     }
 
-    public function reservedFor(int $productId, ?int $variationId = null, ?int $branchId = null): float
+    /** @param bool $current read the latest committed figure (locking read) – use inside a stock-changing transaction */
+    public function reservedFor(int $productId, ?int $variationId = null, ?int $branchId = null, bool $current = false): float
     {
         $q = DB::table('inventory_balances')->where('branch_id', $branchId ?? Install::branchId())->where('product_id', $productId);
+        if ($current) {
+            $q->sharedLock();
+        }
         if ($variationId) {
             $q->where('variation_key', $variationId);
         }
@@ -119,7 +131,7 @@ class InventoryBalances
         return DB::transaction(function () use ($productId, $variationId, $qty, $refType, $ref, $branchId, $allowShort) {
             DB::table('products')->where('id', $productId)->lockForUpdate()->value('id');
             if (!$allowShort) {
-                $avail = $this->available($productId, $variationId, $branchId);
+                $avail = $this->available($productId, $variationId, $branchId, true);
                 if ($avail + 0.0001 < $qty) {
                     $title = DB::table('products')->where('id', $productId)->value('title');
                     throw new InsufficientStockException($title, max(0, $avail), $qty);

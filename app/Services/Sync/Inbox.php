@@ -52,6 +52,8 @@ class Inbox
                 try {
                     DB::transaction(fn () => $this->apply($branch, $e['entity'], (array) $e['payload'], $e['op'] ?? 'upsert'));
                     $status = ['event_uid' => $uid, 'status' => 'applied'];
+                } catch (ForbiddenEvent $f) {
+                    $status = ['event_uid' => $uid, 'status' => 'rejected', 'error' => $f->getMessage()];
                 } catch (MissingReference $m) {
                     $status = ['event_uid' => $uid, 'status' => 'retry', 'error' => $m->getMessage()];
                 } catch (\Illuminate\Validation\ValidationException $v) {
@@ -88,8 +90,8 @@ class Inbox
         $def = Registry::UP[$entity];
         match ($entity) {
             'uid_alias' => UidAliases::store((string) $payload['table'], (string) $payload['alias_uid'], (string) $payload['target_uid'], $branch->id, 'adopted at branch'),
-            'transfer' => $this->applyDocument('transfer', $payload),
-            'purchase_order' => $this->applyDocument('purchase_order', $payload),
+            'transfer' => $this->applyDocument('transfer', $payload, $branch),
+            'purchase_order' => $this->applyDocument('purchase_order', $payload, $branch),
             'product' => $this->applyProduct($branch, $payload),
             'user' => $this->applyUser($branch, $payload),
             'customer' => $this->applyCustomer($branch, $def, $payload),
@@ -100,8 +102,25 @@ class Inbox
     protected function applyRow(Branch $branch, string $entity, array $def, array $payload): void
     {
         $values = RowCodec::decode($def, $payload);
-        if (isset(RowCodec::columns($def['table'])['branch_id'])) {
+        $cols = RowCodec::columns($def['table']);
+        if (isset($cols['branch_id'])) {
+            // a branch only writes its own records: never another branch's sale, stock line or till
+            $existing = DB::table($def['table'])->where('uid', $values['uid'] ?? '')->first(['branch_id']);
+            if (!$existing && !empty($def['keep_id']) && isset($values['id'])) {
+                $existing = DB::table($def['table'])->where('id', $values['id'])->first(['branch_id']);
+            }
+            if ($existing && $existing->branch_id && (int) $existing->branch_id !== $branch->id) {
+                throw new ForbiddenEvent("This {$entity} belongs to another branch.");
+            }
             $values['branch_id'] = $branch->id;
+        }
+        foreach (['stock_location_id', 'destination_location_id', 'location_id'] as $c) {
+            if (!empty($values[$c]) && $entity !== 'stock_location') {
+                $owner = DB::table('stock_locations')->where('id', $values[$c])->value('branch_id');
+                if ($owner && (int) $owner !== $branch->id && !($entity === 'stock' && $c === 'destination_location_id')) {
+                    throw new ForbiddenEvent("That stock location belongs to another branch.");
+                }
+            }
         }
         if ($entity === 'stock_location' && !empty($values['code'])) {
             // keep codes readable at head office: "IKJ-MAIN"
@@ -156,8 +175,14 @@ class Inbox
     }
 
     /** Transfers / purchase orders: keep the copy that is further along, pass it on to the other branch, post our own stock effects. */
-    protected function applyDocument(string $entity, array $payload): void
+    protected function applyDocument(string $entity, array $payload, ?Branch $branch = null): void
     {
+        if ($branch) {
+            $parties = $entity === 'transfer' ? [$payload['from_branch_uid'] ?? null, $payload['to_branch_uid'] ?? null] : [$payload['branch_uid'] ?? null];
+            if (!in_array($branch->uid, $parties, true)) {
+                throw new ForbiddenEvent("This {$entity} is between other branches.");
+            }
+        }
         [$doc, $changed] = $entity === 'transfer'
             ? \App\Services\Inventory\DocumentPayload::importTransfer($payload)
             : \App\Services\Inventory\DocumentPayload::importPurchaseOrder($payload);

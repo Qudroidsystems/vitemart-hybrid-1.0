@@ -272,7 +272,9 @@ New sidebar section **Stock & buying**: Transfers, Stock counts, Purchase orders
 - Quantities can be entered in cartons / packs; stock always moves in single units.
 - Each step happens on the server where it physically happens and the document travels through head office.
   Each server posts its own stock exactly once:
-  sender – approval reserves the stock (the till can't sell it), dispatch moves it to *in transit*, the receipt clears transit;
+  sender – approval reserves the stock (the till can't sell it), dispatch moves it to *in transit*, the receipt clears what
+  arrived from transit (a shortage stays in transit until it is settled – *written off* / *charged* posts it out as a loss,
+  *found* clears it);
   receiver – dispatch shows it as *incoming*, receiving books it into the store.
 - **Differences** (short / extra) are flagged and must be settled line by line: *write off*, *charge to someone* (with a note),
   or *more turned up* (the receiver books it in). The transfer closes when every difference is settled;
@@ -302,3 +304,112 @@ purchase order, Manage suppliers, Post goods receipt, Return to supplier, Count 
 ```bash
 DB_CONNECTION=mysql DB_DATABASE=vitemart_test ./vendor/bin/pest      # 64 tests
 ```
+
+---
+
+# Multi-branch, phases 7–8 (head-office reports, backups, upgrades, acceptance) – pilot release
+
+## Install
+```bash
+php artisan migrate        # 1 new migration (backup_runs, upgrade_runs, damaged quantity on transfer lines)
+php artisan optimize:clear
+php artisan vitemart:backup --list     # check backups work on this machine (needs mysqldump – see below)
+```
+`.env` (all optional):
+```
+VITEMART_BACKUP_AT=23:40              # nightly backup time (backup:run, database only), backup:clean at 23:55
+VITEMART_MIN_BRANCH_VERSION=2026.11.0 # head office: branch servers older than this are told to upgrade (HTTP 426)
+DB_DUMP_PATH=/Applications/XAMPP/xamppfiles/bin   # where mysqldump / mysql live, if they're not on the PATH
+```
+The scheduler must run every minute (`php artisan schedule:run` from cron / Task Scheduler) – it already runs sync.
+
+## Head office: All branches (`/hq-dashboard`, sidebar → *All branches*, head office only)
+- Today / yesterday / 7 / 30 days / this or last month / this year / own dates; tick branches to compare.
+- Per branch: sales, receipts, basket, gross profit and margin, refunds and voids, stock value, low / out of stock,
+  transfers in / out; sales per day, sales by branch, best sellers with each branch's share, how customers paid; CSV export.
+- **Freshness**: every branch row says how fresh its figures are – *Up to date* (synced in the last 15 min), *Behind*
+  (up to 2 h) or *Out of date* / *Never synced* – with the time ("12 Oct 08:40 · 3 hours ago"). A banner above the totals
+  says how many branches are behind, so nobody reads yesterday's numbers as today's.
+
+## Backups
+- **Nightly**: `backup:run --only-db` at `VITEMART_BACKUP_AT`; old ones are pruned by `backup:clean`.
+- **Back up now**: Sync page → *Back up now* (needs *Manage sync*), or `php artisan vitemart:backup`.
+- `php artisan vitemart:backup --list` / `--verify=FILE` (checks the file is a complete dump and counts the tables).
+- Every backup is recorded; head office's Sync page shows each branch's **last backup** (red when none for 2 days).
+- Copy `storage/app/vitemart-backups` (and the nightly zips) off the machine – a USB disk or cloud folder. A backup on
+  the same disk as the database doesn't survive a disk failure.
+
+## Restore (`php artisan vitemart:restore FILE` or `--latest`)
+safety backup of the current database → maintenance mode → load the backup → migrate → recalculate stock → maintenance off.
+On a **branch** it also:
+- sends again everything the backup still had waiting (head office recognises what it already has – nothing is doubled);
+- moves receipt / document numbers past anything head office has already seen (asks head office; if it can't be reached
+  it jumps 1,000 ahead), so a receipt number is never used twice.
+Sales made at the branch after the backup are gone from the branch but stay in head-office reports (they were synced).
+If the restore fails half-way, the safety backup is loaded back.
+
+## Upgrades (`php artisan vitemart:upgrade`)
+1. `git pull` / copy the new release, `composer install --no-dev`, then
+2. `php artisan vitemart:upgrade --dry-run` – lists the database changes waiting;
+3. `php artisan vitemart:upgrade` – backup → maintenance mode → migrations → checks (main tables answer, the app starts)
+   → maintenance off. **If anything fails, the backup is loaded back and the app comes up on the old database**; the run
+   is recorded with the reason (`upgrade_runs`).
+- Upgrade **head office first**. A branch refuses to run ahead of head office's version (`--force` overrides), and refuses
+  while more than 5,000 sync events are waiting.
+- Head office rejects branch servers older than `VITEMART_MIN_BRANCH_VERSION` with *upgrade required*; their sales wait
+  safely in the outbox until the branch is upgraded.
+
+## Other changes in this release
+- **Damaged on arrival**: when receiving a transfer, enter good and damaged quantities; damaged stock goes to the branch's
+  quarantine location, not the shelf.
+- **Card machine timed out**: on the till, tick *The card machine didn't answer* – the sale completes with the card amount
+  *pending* on *Payments to confirm*; a supervisor confirms it (or marks it not received) after checking the terminal.
+  The till's automatic retry of the same sale never creates a second one.
+- **Two tills selling the last units at the same moment** can no longer both succeed: the stock check reads the latest
+  committed balance (it could read a stale snapshot before).
+- Head office rejects a change from a branch to another branch's records (sales, stock lines, tills, transfers it isn't
+  part of); the branch shows it as a problem on its Sync page instead of retrying for ever.
+
+## Acceptance tests
+The 18 acceptance tests from the technical design run as `tests/Feature/AcceptanceTest.php` (1–6, 8–15, 18) and
+`tests/Feature/AcceptanceOperationsTest.php` (7: ten parallel tills; 16: restore; 17: failing upgrade). The operations
+tests use real processes and a scratch database:
+```bash
+mysql -e "CREATE DATABASE vitemart_ops"     # scratch copy, wiped by the tests
+DB_CONNECTION=mysql DB_DATABASE=vitemart_test VITEMART_OPS_DATABASE=vitemart_ops ./vendor/bin/pest     # 82 tests
+```
+
+---
+
+# Pilot checklist (head office + the first branch)
+
+**Before go-live – head office (VPS)**
+- [ ] HTTPS certificate on the head-office address; `APP_URL` set; `APP_DEBUG=false`.
+- [ ] `php artisan vitemart:install --mode=central --org="…"`, migrations run, `php artisan vitemart:status` shows *central*.
+- [ ] Cron: `* * * * * php /path/artisan schedule:run`; queue worker if you use one.
+- [ ] `php artisan vitemart:backup` works; nightly backup copied off the server (provider snapshot or another disk).
+- [ ] Head-office staff have two-step sign-in set up (roles that require it can't sign in until they do).
+- [ ] Catalogue checked: prices, VAT (7.5 % inclusive), packs, barcodes; field policies decided (which fields branches may change).
+
+**Before go-live – branch (the current store)**
+- [ ] Full backup of the store database taken and copied off the machine **before** switching to branch mode.
+- [ ] Enrollment code issued at head office → `php artisan vitemart:install --mode=branch …` on the store server → *Sync* page shows head office.
+- [ ] First sync finished (Sync page: nothing waiting, catalogue *up to date*); spot-check 10 products' prices and stock.
+- [ ] Tills: each till registered, opening float, receipt printer and scanner tested; cashiers can sign in **only** here.
+- [ ] Card terminal reference rule decided (`card_needs_terminal_ref`); supervisors know *Payments to confirm*.
+- [ ] Nightly backup time set; *Back up now* tried once; backups copied off the machine (USB / cloud folder).
+
+**Pilot week – daily**
+- [ ] Head office *All branches*: branch shows *Up to date* during trading hours; totals match the store's Z-report.
+- [ ] Sync page at the branch: *Problems* = 0; anything *dead* is looked at the same day.
+- [ ] *Payments to confirm* emptied by close; transfers/card timeouts resolved.
+- [ ] Unplug the internet for 15 minutes once: tills keep selling; after reconnecting the queue empties within minutes.
+- [ ] One transfer head office → branch, with one short and one damaged item, settled end to end.
+- [ ] One stock count on a shelf, approved, the adjustment checked.
+
+**Pilot week – once**
+- [ ] Restore drill on a spare machine / copy: `php artisan vitemart:restore --latest` – app starts, sync resumes, no duplicate receipts.
+- [ ] Upgrade drill: `vitemart:upgrade --dry-run` then `vitemart:upgrade` on head office, then the branch.
+
+**Go / no-go for the next branch**: a full week with no lost or doubled sales at head office, the daily totals matching,
+no sync problem older than a day, and a successful restore drill.

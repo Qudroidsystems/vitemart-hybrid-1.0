@@ -291,12 +291,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{supplierReturn}', 'show')->name('show');
     });
 
+    // Head office: all branches side by side (phase 7)
+    Route::get('/hq-dashboard', [\App\Http\Controllers\MultiBranch\HqDashboardController::class, 'index'])->name('mb.hq-dashboard');
+    Route::get('/hq-dashboard/export', [\App\Http\Controllers\MultiBranch\HqDashboardController::class, 'export'])->name('mb.hq-dashboard.export');
+
     // Sync status / controls
     Route::prefix('sync')->name('mb.sync.')->controller(\App\Http\Controllers\MultiBranch\SyncController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/run', 'run')->name('run');
         Route::post('/retry', 'retry')->name('retry');
         Route::post('/resync', 'resync')->name('resync');
+        Route::post('/backup', 'backup')->name('backup');
         Route::post('/snapshot', 'snapshot')->name('snapshot');
         Route::post('/branches/{branch}/command', 'command')->name('command');
     });

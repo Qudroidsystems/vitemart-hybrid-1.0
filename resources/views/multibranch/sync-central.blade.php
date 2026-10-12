@@ -20,7 +20,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light"><tr>
                     <th>Branch</th><th>Server</th><th>Last sent us data</th><th>Last downloaded</th><th class="text-end">Catalogue behind</th>
-                    <th class="text-end">Waiting at branch</th><th class="text-end">Failed here</th><th class="text-end">Received today</th><th></th>
+                    <th class="text-end">Waiting at branch</th><th>Last backup</th><th class="text-end">Failed here</th><th class="text-end">Received today</th><th></th>
                 </tr></thead>
                 <tbody>
                 @forelse ($branches as $b)
@@ -40,6 +40,7 @@
                         <td class="text-end">{{ $b->sync_behind === null ? '—' : ($b->sync_behind ? number_format($b->sync_behind) : 'up to date') }}</td>
                         <td class="text-end {{ ($i?->pending_events ?? 0) > 500 ? 'text-warning fw-semibold' : '' }}">{{ number_format($i?->pending_events ?? 0) }}
                             @if (($i?->dead_letters ?? 0) > 0)<div class="fs-xs text-danger">{{ $i->dead_letters }} gave up</div>@endif</td>
+                        <td class="fs-sm {{ !$i?->last_backup_at || $i->last_backup_at->lt(now()->subDays(2)) ? 'text-danger' : '' }}">{{ $i?->last_backup_at?->diffForHumans() ?? 'never' }}</td>
                         <td class="text-end {{ $b->inbox_failed ? 'text-danger fw-semibold' : '' }}">{{ number_format($b->inbox_failed) }}</td>
                         <td class="text-end">{{ number_format($b->inbox_today) }}</td>
                         <td class="text-end">
@@ -49,7 +50,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="text-center text-muted py-4">No branches yet.</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-4">No branches yet.</td></tr>
                 @endforelse
                 </tbody>
             </table>

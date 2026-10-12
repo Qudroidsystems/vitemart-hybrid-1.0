@@ -379,6 +379,10 @@
                             <input type="number" step="0.01" min="0" class="form-control" id="tender" placeholder="0.00">
                         </div>
                         <input type="text" class="form-control form-control-sm mb-2" id="payRef" placeholder="Reference (card slip / transfer ID)" style="display:none">
+                        <div class="form-check mb-2 fs-sm" id="payCardPendingBox" style="display:none">
+                            <input class="form-check-input" type="checkbox" id="payCardPending">
+                            <label class="form-check-label" for="payCardPending">The card machine didn't answer (timed out) – check it later</label>
+                        </div>
                         @if ($config['transferNeedsConfirmation'])
                             <div class="form-check mb-2 fs-sm" id="payConfirmedBox" style="display:none">
                                 @if ($config['can']['confirm_payments'])
@@ -1376,6 +1380,7 @@
         $('#quick').innerHTML = method === 'cash' ? notes.map((v, i) => `<button type="button" data-v="${v}">${i === 0 ? 'Exact' : M(v, 0)}</button>`).join('') : '';
         $('#payRef').style.display = method === 'cash' ? 'none' : '';
         if ($('#payConfirmedBox')) $('#payConfirmedBox').style.display = method === 'transfer' ? '' : 'none';
+        $('#payCardPendingBox').style.display = method === 'card' ? '' : 'none';
     }
     $('#pList').addEventListener('click', e => { const i = e.target.closest('[data-rm]')?.dataset.rm; if (i !== undefined) { e.preventDefault(); payments.splice(i, 1); updatePay(true); } });
     $('#quick').addEventListener('click', e => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { $('#tender').value = Number(v).toFixed(2); updatePay(); } });
@@ -1398,9 +1403,10 @@
         const amt = Number($('#tender').value || 0);
         if (amt <= 0) return;
         if (method !== 'cash' && amt > remaining() + 0.004) { VM.toast('Card/transfer cannot be more than what is left to pay', 'warning'); return; }
-        payments.push({method, amount: round2(amt), reference: $('#payRef').value || null, confirmed: method === 'transfer' && !!$('#payConfirmed')?.checked});
+        payments.push({method, amount: round2(amt), reference: $('#payRef').value || null, confirmed: method === 'transfer' && !!$('#payConfirmed')?.checked, pending: method === 'card' && $('#payCardPending').checked});
         $('#payRef').value = '';
         if ($('#payConfirmed')) $('#payConfirmed').checked = false;
+        $('#payCardPending').checked = false;
         updatePay(true);
     });
 
@@ -1411,8 +1417,8 @@
         if (btn.disabled) return;
         const tender = Number($('#tender').value || 0);
         const pays = payments.slice();
-        if (tender > 0) pays.push({method, amount: round2(tender), reference: $('#payRef').value || null, confirmed: method === 'transfer' && !!$('#payConfirmed')?.checked});
-        if (CFG.cardNeedsRef && pays.some(p => p.method === 'card' && !p.reference)) { VM.toast('Enter the card terminal reference from the slip', 'warning'); $('#payRef').focus(); return; }
+        if (tender > 0) pays.push({method, amount: round2(tender), reference: $('#payRef').value || null, confirmed: method === 'transfer' && !!$('#payConfirmed')?.checked, pending: method === 'card' && $('#payCardPending').checked});
+        if (CFG.cardNeedsRef && pays.some(p => p.method === 'card' && !p.reference && !p.pending)) { VM.toast('Enter the card terminal reference from the slip', 'warning'); $('#payRef').focus(); return; }
         const paid = pays.reduce((a, p) => a + p.amount, 0);
         if (paid + 0.004 < totals().total) { VM.toast('Payment is short by ' + M(totals().total - paid), 'warning'); return; }
 

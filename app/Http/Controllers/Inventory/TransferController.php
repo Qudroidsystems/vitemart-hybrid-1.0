@@ -137,8 +137,9 @@ class TransferController extends Controller
 
     public function receive(Request $request, StockTransfer $transfer)
     {
-        $note = $request->validate(['note' => 'nullable|string|max:255'])['note'] ?? null;
-        $t = $this->service->receive($transfer->load('lines'), $this->qtys($request), $note);
+        $data = $request->validate(['note' => 'nullable|string|max:255', 'damaged' => 'nullable|array', 'damaged.*' => 'nullable|numeric|min:0']);
+        $damaged = array_filter($data['damaged'] ?? [], fn ($v) => $v !== null && $v !== '' && (float) $v > 0);
+        $t = $this->service->receive($transfer->load('lines'), $this->qtys($request), $data['note'] ?? null, $damaged);
         return response()->json(['success' => true, 'message' => $t->has_discrepancy
             ? 'Received – some quantities differ from what was sent. Resolve the differences below.' : 'Received in full. Transfer closed.']);
     }

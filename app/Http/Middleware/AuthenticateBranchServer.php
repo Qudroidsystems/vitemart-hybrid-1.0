@@ -35,6 +35,11 @@ class AuthenticateBranchServer
         if (!Signature::verify((string) $inst->hmac_secret, $request->method(), '/' . $request->path(), $request->getContent(), $ts, $sig)) {
             return $this->deny('bad_signature', 'Request signature invalid or clock skew above 5 minutes.', 401);
         }
+        $ver = (string) $request->header('X-App-Version');
+        $min = (string) config('vitemart.min_branch_version');
+        if ($ver !== '' && $min !== '' && version_compare($ver, $min, '<')) {
+            return $this->deny('upgrade_required', "This branch runs {$ver}; head office needs {$min} or later. Run php artisan vitemart:upgrade on the branch.", 426);
+        }
         if ($inst->branch?->status === 'closed') {
             return $this->deny('branch_closed', 'This branch is closed.', 403);
         }

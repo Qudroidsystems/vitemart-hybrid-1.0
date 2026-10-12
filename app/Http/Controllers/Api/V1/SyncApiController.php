@@ -47,6 +47,13 @@ class SyncApiController extends Controller
         return response()->json($out);
     }
 
+    /** The highest document numbers head office has for this branch (asked after a restore). */
+    public function sequences(Request $request)
+    {
+        $b = $request->attributes->get('branch');
+        return response()->json(['highest' => \App\Services\MultiBranch\DocumentNumber::highestFor($b->id, $b->code)]);
+    }
+
     public function commandResult(Request $request, string $uid)
     {
         $data = $request->validate(['status' => 'required|in:done,failed,refused', 'result' => 'nullable|string|max:20000']);

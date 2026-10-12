@@ -32,6 +32,9 @@ class VitemartHeartbeat extends Command
                 return self::FAILURE;
             }
             \App\Models\SystemSetting::set('last_hq_contact_at', now()->toIso8601String());
+            if ($rel = $res->json('latest_release')) {
+                \App\Services\Sync\SyncState::set('hq_release', $rel); // vitemart:upgrade won't let a branch run ahead of head office
+            }
         } catch (\Throwable $e) {
             $this->warn('HQ unreachable: ' . $e->getMessage());
             return self::FAILURE;

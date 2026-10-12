@@ -25,5 +25,6 @@ Route::middleware([AuthenticateBranchServer::class, 'throttle:240,1'])->group(fu
     // Sync (phase 5)
     Route::post('/sync/push', [SyncApiController::class, 'push']);
     Route::get('/sync/pull', [SyncApiController::class, 'pull']);
+    Route::get('/sync/sequences', [SyncApiController::class, 'sequences']);
     Route::post('/sync/commands/{uid}', [SyncApiController::class, 'commandResult']);
 });

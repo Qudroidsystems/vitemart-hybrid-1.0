@@ -137,11 +137,14 @@ class StockMovementPurchasingTest extends TestCase
         $this->assertTrue($t->has_discrepancy);
         $this->assertSame(-1.0, round((float) $t->lines[0]->discrepancy_qty, 3));
         $this->assertSame(23.0, $bal->onHand($p->id, null, $this->other->id));
-        $this->assertSame(0.0, $this->stock->balance($p->id, null, $transit->id)); // transit cleared at the sender
+        // what arrived left transit; the missing piece stays in transit until the difference is settled
+        $this->assertSame(1.0, $this->stock->balance($p->id, null, $transit->id));
 
         $t = $svc->resolve($t, $t->lines[0], 'written_off', 'dented');
         $this->assertSame('closed', $t->status);
         $this->assertSame('written_off', $t->lines[0]->discrepancy_status);
+        $this->assertSame(0.0, $this->stock->balance($p->id, null, $transit->id));
+        $this->assertDatabaseHas('stocks', ['product_id' => $p->id, 'stock_location_id' => $transit->id, 'type' => 'damage', 'quantity' => 1]);
 
         // effects are posted once only
         $svc->syncEffects($t);

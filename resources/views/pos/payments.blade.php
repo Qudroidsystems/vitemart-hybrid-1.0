@@ -7,7 +7,7 @@
     <div class="page-title-box d-sm-flex align-items-center justify-content-between">
         <div>
             <h4 class="mb-sm-0">Payments to confirm</h4>
-            <p class="text-muted mb-0 mt-1 fs-sm">Transfers the till accepted before anyone saw the money arrive. Check the bank app, then confirm or mark as not received.</p>
+            <p class="text-muted mb-0 mt-1 fs-sm">Transfers the till accepted before anyone saw the money arrive, and card payments where the card machine timed out. Check the bank app or the terminal’s end-of-day report, then confirm or mark as not received.</p>
         </div>
         <form class="d-flex gap-2" method="GET">
             <input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Receipt or reference">

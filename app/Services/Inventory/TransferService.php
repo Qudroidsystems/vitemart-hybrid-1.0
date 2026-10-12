@@ -204,7 +204,11 @@ class TransferService
     }
 
     /** Receiving branch: count what arrived.  Differences become discrepancies to resolve. */
-    public function receive(StockTransfer $t, array $qtys = [], ?string $note = null): StockTransfer
+    /**
+     * @param array $qtys    line uid → good quantity (in the line's pack)
+     * @param array $damaged line uid → quantity that arrived damaged (goes to quarantine, not the shelf)
+     */
+    public function receive(StockTransfer $t, array $qtys = [], ?string $note = null, array $damaged = []): StockTransfer
     {
         if ($t->status !== 'dispatched') {
             throw ValidationException::withMessages(['status' => 'This transfer is not on the way.']);
@@ -212,25 +216,36 @@ class TransferService
         if (!$this->canActFor($t->to_branch_id)) {
             throw ValidationException::withMessages(['status' => 'Only the receiving branch can receive it.']);
         }
-        DB::transaction(function () use ($t, $qtys, $note) {
+        DB::transaction(function () use ($t, $qtys, $note, $damaged) {
             $to = $this->locations->storeFor($t->to_branch_id);
+            $quarantine = null;
             $diff = false;
             foreach ($t->lines as $l) {
-                $q = array_key_exists($l->uid, $qtys) ? max(0, (float) $qtys[$l->uid]) * $l->qty_per_unit : (float) $l->dispatched_qty;
+                $bad = round(max(0, (float) ($damaged[$l->uid] ?? 0)) * $l->qty_per_unit, 3);
+                $q = array_key_exists($l->uid, $qtys) ? max(0, (float) $qtys[$l->uid]) * $l->qty_per_unit : max(0, (float) $l->dispatched_qty - $bad);
                 $q = round($q, 3);
-                $d = round($q - (float) $l->dispatched_qty, 3);
-                $l->update(['received_qty' => $q, 'discrepancy_qty' => $d, 'discrepancy_status' => abs($d) > 0.0005 ? 'open' : 'none']);
-                $diff = $diff || abs($d) > 0.0005;
+                // short / extra = what arrived (good + damaged) against what was sent
+                $d = round($q + $bad - (float) $l->dispatched_qty, 3);
+                $open = abs($d) > 0.0005;
+                $l->update(['received_qty' => $q, 'damaged_qty' => $bad, 'discrepancy_qty' => $d, 'discrepancy_status' => $open ? 'open' : 'none']);
+                $diff = $diff || $open || $bad > 0;
                 if ($q > 0) {
                     $this->stock->record(['product_id' => $l->product_id, 'variation_id' => $l->product_variation_id, 'location_id' => $to->id,
                         'direction' => 'in', 'type' => 'transfer_in', 'quantity' => $q, 'unit_cost' => $l->unit_cost,
                         'reference_type' => 'transfer', 'reference_number' => $t->number, 'reason' => 'Transfer from ' . $t->fromBranch->code]);
                 }
+                if ($bad > 0) {
+                    $quarantine ??= $this->locations->typed($t->to_branch_id, 'quarantine');
+                    $this->stock->record(['product_id' => $l->product_id, 'variation_id' => $l->product_variation_id, 'location_id' => $quarantine->id,
+                        'direction' => 'in', 'type' => 'transfer_in', 'quantity' => $bad, 'unit_cost' => $l->unit_cost,
+                        'reference_type' => 'transfer', 'reference_number' => $t->number, 'reason' => 'Arrived damaged from ' . $t->fromBranch->code]);
+                }
             }
             $this->posted($t, 'receive');
-            $this->bump($t, ['status' => $diff ? 'received' : 'closed', 'has_discrepancy' => $diff, 'received_by_name' => $this->who(),
+            $openLines = $t->lines()->where('discrepancy_status', 'open')->exists();
+            $this->bump($t, ['status' => $openLines ? 'received' : 'closed', 'has_discrepancy' => $diff, 'received_by_name' => $this->who(),
                 'received_at' => now(), 'notes' => trim(($t->notes ? $t->notes . "\n" : '') . ($note ?? '')) ?: null]
-                + ($diff ? [] : ['closed_at' => now(), 'closed_by_name' => $this->who()]));
+                + ($openLines ? [] : ['closed_at' => now(), 'closed_by_name' => $this->who()]));
             $this->syncEffects($t->fresh('lines'));
         });
         AuditLogger::log('transfer_received', "Transfer {$t->number} received" . ($t->fresh()->has_discrepancy ? ' with differences' : ''), 'inventory');
@@ -300,6 +315,19 @@ class TransferService
         }
     }
 
+    /** How much of this line is still sitting in the sending branch's transit location. */
+    protected function transitLeft(StockTransfer $t, StockTransferLine $l, int $branchId): float
+    {
+        $transit = $this->locations->typed($branchId, 'transit');
+        $rows = DB::table('stocks')->where('stock_location_id', $transit->id)->where('reference_type', 'transfer')
+            ->where('reference_number', $t->number)->where('product_id', $l->product_id)
+            ->when($l->product_variation_id, fn ($q) => $q->where('product_variation_id', $l->product_variation_id),
+                fn ($q) => $q->whereNull('product_variation_id'))
+            ->whereNull('deleted_at')
+            ->selectRaw("SUM(CASE WHEN type IN ('in','adjustment','transfer_in','return') THEN quantity ELSE -quantity END) n")->value('n');
+        return round((float) $rows, 3);
+    }
+
     /** Bring this server's stock in line with the transfer's status (safe to call any number of times). */
     public function syncEffects(StockTransfer $t): void
     {
@@ -322,16 +350,37 @@ class TransferService
             if (in_array($s, ['dispatched', 'received', 'closed', 'cancelled', 'rejected'], true)) {
                 $this->releaseReservation($t, in_array($s, ['cancelled', 'rejected'], true) ? 'released' : 'consumed');
             }
+            // What arrived leaves transit at receipt; a shortage stays in transit (still ours, not yet a loss)
+            // until the difference is settled – written off / charged posts it out as a loss, found clears it.
             if (in_array($s, ['received', 'closed'], true) && $this->isPosted($t, 'dispatch') && !$this->isPosted($t, 'clear_transit')) {
                 $transit = $this->locations->typed($here, 'transit');
                 foreach ($t->lines as $l) {
-                    if (($q = (float) $l->dispatched_qty) > 0) {
+                    $arrived = (float) $l->received_qty + (float) ($l->damaged_qty ?? 0);
+                    $q = round(min((float) $l->dispatched_qty, $arrived), 3);
+                    if ($q > 0) {
                         $this->stock->record(['product_id' => $l->product_id, 'variation_id' => $l->product_variation_id, 'location_id' => $transit->id,
                             'direction' => 'out', 'type' => 'transfer', 'quantity' => $q, 'allow_negative' => true, 'unit_cost' => $l->unit_cost,
                             'reference_type' => 'transfer', 'reference_number' => $t->number, 'reason' => 'Received by ' . $t->toBranch->code]);
                     }
                 }
                 $this->posted($t, 'clear_transit');
+            }
+            if ($this->isPosted($t, 'clear_transit')) {
+                foreach ($t->lines as $l) {
+                    if (in_array($l->discrepancy_status, ['written_off', 'charged', 'found'], true) && !$this->isPosted($t, 'settle:' . $l->uid)) {
+                        $left = $this->transitLeft($t, $l, $here);
+                        if ($left > 0.0005) {
+                            $loss = $l->discrepancy_status !== 'found';
+                            $this->stock->record(['product_id' => $l->product_id, 'variation_id' => $l->product_variation_id,
+                                'location_id' => $this->locations->typed($here, 'transit')->id,
+                                'direction' => 'out', 'type' => $loss ? 'damage' : 'transfer', 'quantity' => $left, 'allow_negative' => true,
+                                'unit_cost' => $l->unit_cost, 'reference_type' => 'transfer', 'reference_number' => $t->number,
+                                'reason' => $loss ? 'Transfer shortage ' . str_replace('_', ' ', $l->discrepancy_status) . ' (' . $t->toBranch->code . ')'
+                                    : 'Transfer shortage found by ' . $t->toBranch->code]);
+                        }
+                        $this->posted($t, 'settle:' . $l->uid);
+                    }
+                }
             }
         }
 

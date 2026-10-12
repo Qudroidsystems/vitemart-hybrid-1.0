@@ -22,3 +22,7 @@ Schedule::call(fn () => \Illuminate\Support\Facades\Cache::forever('vm_scheduler
 
 // Sales report emails (end of day, weekly, …) – sends whichever are due.
 Schedule::command('vitemart:report-emails')->everyMinute()->withoutOverlapping(30);
+
+// Nightly database backup (kept / thinned by backup:clean), and a check that the newest one is complete.
+Schedule::command('backup:run --only-db --disable-notifications')->dailyAt(env('VITEMART_BACKUP_AT', '23:40'))->withoutOverlapping(120);
+Schedule::command('backup:clean --disable-notifications')->dailyAt('23:55');

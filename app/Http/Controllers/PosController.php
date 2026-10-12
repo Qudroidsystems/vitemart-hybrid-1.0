@@ -222,6 +222,7 @@ class PosController extends Controller
             'payments.*.amount' => 'required|numeric|min:0',
             'payments.*.reference' => 'nullable|string|max:100',
             'payments.*.confirmed' => 'nullable|boolean',
+            'payments.*.pending' => 'nullable|boolean',
             'register_id' => 'nullable|integer',
             'redeem_points' => 'nullable|integer|min:0',
             'note' => 'nullable|string|max:500',

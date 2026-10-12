@@ -596,11 +596,13 @@ class PosService
             $needsConfirm = (bool) SystemSetting::get('transfer_needs_confirmation', true);
             $canConfirm = $user->can('Confirm payments');
             if (SystemSetting::get('card_needs_terminal_ref', false)
-                && $payments->contains(fn ($p) => $p['method'] === 'card' && trim((string) ($p['reference'] ?? '')) === '')) {
+                && $payments->contains(fn ($p) => $p['method'] === 'card' && empty($p['pending']) && trim((string) ($p['reference'] ?? '')) === '')) {
                 throw ValidationException::withMessages(['payments' => 'Enter the card terminal reference (from the POS slip).']);
             }
             $payments = $payments->map(function ($p) use ($needsConfirm, $canConfirm) {
-                $p['status'] = ($p['method'] === 'transfer' && $needsConfirm && !(!empty($p['confirmed']) && $canConfirm)) ? 'pending' : 'confirmed';
+                // a card payment whose terminal timed out is kept as pending until someone checks the terminal / bank
+                $p['status'] = (($p['method'] === 'transfer' && $needsConfirm && !(!empty($p['confirmed']) && $canConfirm))
+                    || ($p['method'] === 'card' && !empty($p['pending']))) ? 'pending' : 'confirmed';
                 return $p;
             });
             $pendingAmount = (float) $payments->where('status', 'pending')->sum('amount');
