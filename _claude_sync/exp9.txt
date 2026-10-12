@@ -1,0 +1,11 @@
+6520f6a98a7bc6a42e348ad4bf1b96d3  UPGRADE_NOTES.md
+556941213214cf70803b7b180928056f  app/Console/Commands/VitemartHeartbeat.php
+bf0d9d1da8ba1d6832fc65e7dc758f31  app/Console/Commands/VitemartInstall.php
+NEW  app/Console/Commands/VitemartPreflight.php
+f857c810743fc820d46f09c583c5aee3  app/Http/Controllers/MultiBranch/SyncController.php
+NEW  app/Services/Operations/ReadinessService.php
+NEW  resources/views/multibranch/go-live.blade.php
+e1fd1924997c10f2f47f8457b001ac38  resources/views/multibranch/sync-branch.blade.php
+845f22af643bb827771ed0eca635f60a  resources/views/multibranch/sync-central.blade.php
+96d5ca520ff114eb1fde5605d0d60144  routes/web.php
+NEW  tests/Feature/GoLiveCheckTest.php

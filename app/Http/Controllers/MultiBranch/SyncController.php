@@ -20,8 +20,8 @@ class SyncController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:View sync status|Manage sync', ['only' => ['index']]);
-        $this->middleware('permission:Manage sync', ['except' => ['index', 'distribution']]);
+        $this->middleware('permission:View sync status|Manage sync', ['only' => ['index', 'goLive']]);
+        $this->middleware('permission:Manage sync', ['except' => ['index', 'goLive', 'distribution']]);
         $this->middleware('permission:Distribute products', ['only' => ['distribution']]);
     }
 
@@ -67,6 +67,15 @@ class SyncController extends Controller
 
         return view('multibranch.sync-branch', ['pagetitle' => $pagetitle, 'standalone' => true, 'state' => [], 'counts' => [], 'byEntity' => [],
             'problems' => collect(), 'oldest' => null, 'runs' => collect(), 'install' => Install::current()]);
+    }
+
+    /** Go-live check: what this server still needs before trading on the multi-branch setup. */
+    public function goLive(\App\Services\Operations\ReadinessService $readiness)
+    {
+        $checks = collect($readiness->run());
+        $summary = $readiness->summary($checks->all());
+        $pagetitle = 'Go-live check';
+        return view('multibranch.go-live', ['pagetitle' => $pagetitle, 'groups' => $checks->groupBy('group'), 'summary' => $summary]);
     }
 
     /** Branch: sync now. */

@@ -298,6 +298,7 @@ Route::middleware(['auth'])->group(function () {
     // Sync status / controls
     Route::prefix('sync')->name('mb.sync.')->controller(\App\Http\Controllers\MultiBranch\SyncController::class)->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('/go-live', 'goLive')->name('go-live');
         Route::post('/run', 'run')->name('run');
         Route::post('/retry', 'retry')->name('retry');
         Route::post('/resync', 'resync')->name('resync');

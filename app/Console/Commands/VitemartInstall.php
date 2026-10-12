@@ -26,7 +26,8 @@ class VitemartInstall extends Command
         {--central-url= : headquarters URL (branch)}
         {--branch-code= : this branch\'s code as created at HQ (branch)}
         {--code= : one-time enrollment code from HQ (branch)}
-        {--force : allow changing an installation that already has a role}';
+        {--force : allow changing an installation that already has a role}
+        {--no-backup : do not back up the database first (not recommended)}';
 
     protected $description = 'Set this server up as the headquarters or as an enrolled branch';
 
@@ -38,6 +39,19 @@ class VitemartInstall extends Command
         if ($current && $current->mode !== 'standalone' && !$this->option('force')) {
             $this->error("This server is already set up as '{$current->mode}'. Changing its role is a controlled migration – re-run with --force only if you are sure.");
             return self::FAILURE;
+        }
+
+        // The store's whole history is about to change hands: keep a copy of the database as it was.
+        if (!$this->option('no-backup') && \Illuminate\Support\Facades\Schema::hasTable('backup_runs')) {
+            $this->info('Backing up the database before changing this server\'s role …');
+            try {
+                $b = app(\App\Services\Operations\BackupService::class)->dump('pre-' . $mode);
+                $this->line('Backup saved: ' . $b->path . ' – copy it off this machine before you continue trading.');
+            } catch (\Throwable $e) {
+                $this->error('Backup failed: ' . $e->getMessage());
+                $this->line('Fix the backup (DB_DUMP_PATH in .env must point at the folder with mysqldump) or re-run with --no-backup.');
+                return self::FAILURE;
+            }
         }
 
         return match ($mode) {

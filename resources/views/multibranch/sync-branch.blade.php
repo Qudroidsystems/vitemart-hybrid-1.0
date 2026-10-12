@@ -29,11 +29,14 @@
         @if (empty($standalone))
             @can('Manage sync')
                 <div class="d-flex gap-2">
+                    <a class="btn btn-light btn-sm" href="{{ route('mb.sync.go-live') }}"><i class="bi bi-clipboard-check me-1"></i>Go-live check</a>
                     <button class="btn btn-light btn-sm" id="backupNow"><i class="bi bi-hdd me-1"></i>Back up now</button>
                     <button class="btn btn-light btn-sm" id="resync"><i class="bi bi-cloud-download me-1"></i>Download catalogue again</button>
                     <button class="btn btn-primary btn-sm" id="syncNow"><span class="spinner-border spinner-border-sm me-1 d-none"></span><i class="bi bi-arrow-repeat me-1"></i>Sync now</button>
                 </div>
             @endcan
+        @else
+            <a class="btn btn-primary btn-sm" href="{{ route('mb.sync.go-live') }}"><i class="bi bi-clipboard-check me-1"></i>Go-live check</a>
         @endif
     </div>
 

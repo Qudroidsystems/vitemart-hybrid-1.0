@@ -32,6 +32,10 @@ class VitemartHeartbeat extends Command
                 return self::FAILURE;
             }
             \App\Models\SystemSetting::set('last_hq_contact_at', now()->toIso8601String());
+            if ($t = $res->json('server_time')) {
+                // signed requests only work within 5 minutes of head office's clock – the go-live check watches this
+                \App\Services\Sync\SyncState::set('hq_clock_skew', (int) round(\Carbon\Carbon::parse($t)->diffInSeconds(now(), false)));
+            }
             if ($rel = $res->json('latest_release')) {
                 \App\Services\Sync\SyncState::set('hq_release', $rel); // vitemart:upgrade won't let a branch run ahead of head office
             }

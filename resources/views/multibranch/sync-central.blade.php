@@ -10,9 +10,12 @@
             <p class="text-muted mb-0 mt-1 fs-sm">Each branch sends its sales and stock, and downloads the catalogue, prices, staff and settings from here.
                 Feed: {{ number_format($feed['rows']) }} records, position {{ number_format($feed['head']) }}@if ($feed['dirty']) · {{ $feed['dirty'] }} change(s) being prepared @endif.</p>
         </div>
+        <div class="d-flex gap-2">
+        <a class="btn btn-light btn-sm" href="{{ route('mb.sync.go-live') }}"><i class="bi bi-clipboard-check me-1"></i>Go-live check</a>
         @can('Manage sync')
             <button class="btn btn-light btn-sm" id="snapshot" title="Put every product, price, staff member … back into the feed"><i class="bi bi-database-check me-1"></i>Rebuild feed</button>
         @endcan
+        </div>
     </div>
 
     <div class="card">

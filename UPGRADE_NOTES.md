@@ -383,6 +383,16 @@ DB_CONNECTION=mysql DB_DATABASE=vitemart_test VITEMART_OPS_DATABASE=vitemart_ops
 
 # Pilot checklist (head office + the first branch)
 
+**Let the server check itself first.** Sync page → **Go-live check** (or `php artisan vitemart:preflight`; exit code 1 while
+anything is red) checks everything below that a server can see for itself – debug mode, HTTPS, scheduler, mysqldump, recent
+backup, enrolment, head office reachable, clock difference with head office, sales stuck in the outbox, catalogue downloaded,
+version, VAT, duplicate barcodes, products without a price, negative stock, managers without two-step sign-in, admin accounts
+still on a default password, tills, old pending payments and open transfer differences – and says what to do for each.
+Items marked *You confirm* (backups copied off the machine, restore drill, card reference rule) are for a person to tick.
+It works on the current single-store install too, so run it **before** switching the store over.
+
+`vitemart:install` now backs the database up before it changes a server's role (`--no-backup` to skip); it stops if the backup fails.
+
 **Before go-live – head office (VPS)**
 - [ ] HTTPS certificate on the head-office address; `APP_URL` set; `APP_DEBUG=false`.
 - [ ] `php artisan vitemart:install --mode=central --org="…"`, migrations run, `php artisan vitemart:status` shows *central*.
