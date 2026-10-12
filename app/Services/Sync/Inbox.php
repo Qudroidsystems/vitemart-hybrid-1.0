@@ -88,6 +88,8 @@ class Inbox
         $def = Registry::UP[$entity];
         match ($entity) {
             'uid_alias' => UidAliases::store((string) $payload['table'], (string) $payload['alias_uid'], (string) $payload['target_uid'], $branch->id, 'adopted at branch'),
+            'transfer' => $this->applyDocument('transfer', $payload),
+            'purchase_order' => $this->applyDocument('purchase_order', $payload),
             'product' => $this->applyProduct($branch, $payload),
             'user' => $this->applyUser($branch, $payload),
             'customer' => $this->applyCustomer($branch, $def, $payload),
@@ -151,6 +153,20 @@ class Inbox
             DB::table('customers')->where('id', $id)->update(['loyalty_points' => max(0, (int) $points)]);
         }
         $this->touchedCustomers[DB::table('customers')->where('id', $id)->value('uid')] = true;
+    }
+
+    /** Transfers / purchase orders: keep the copy that is further along, pass it on to the other branch, post our own stock effects. */
+    protected function applyDocument(string $entity, array $payload): void
+    {
+        [$doc, $changed] = $entity === 'transfer'
+            ? \App\Services\Inventory\DocumentPayload::importTransfer($payload)
+            : \App\Services\Inventory\DocumentPayload::importPurchaseOrder($payload);
+        if ($changed) {
+            Feed::mark($entity, $doc->uid);
+            if ($entity === 'transfer') {
+                SyncContext::defer(fn () => app(\App\Services\Inventory\TransferService::class)->syncEffects($doc->fresh('lines')));
+            }
+        }
     }
 
     /** A product the branch created itself: head office keeps it as that branch's local product. */

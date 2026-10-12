@@ -406,7 +406,8 @@ class ProductController extends Controller
             $query->where(function ($w) use ($q) {
                 $w->where('title', 'like', "%{$q}%")->orWhere('sku', 'like', "{$q}%")->orWhere('barcode', $q)->orWhere('plu_code', $q)
                   ->orWhereHas('variations', fn ($v) => $v->where('barcode', $q)->orWhere('sku', $q))
-                  ->orWhereHas('packs', fn ($p) => $p->where('barcode', $q));
+                  ->orWhereHas('packs', fn ($p) => $p->where('barcode', $q))
+                  ->orWhereIn('id', \App\Models\ProductBarcode::where('barcode', $q)->select('product_id'));
             });
         } else {
             return response()->json([]);
@@ -448,6 +449,7 @@ class ProductController extends Controller
                     'unit' => $prod->baseUnitName(),
                     'packs' => $packs,
                     'is_weighted' => (bool) $prod->is_weighted,
+                    'owner' => $prod->owner ?? 'branch',
                     'thumbnail' => $prod->thumbnail ? asset('storage/' . $prod->thumbnail) : null,
                 ];
             }

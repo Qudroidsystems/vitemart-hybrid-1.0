@@ -253,3 +253,52 @@ New permissions: View sync status, Manage sync, Distribute products.
 ```bash
 DB_CONNECTION=mysql DB_DATABASE=vitemart_test ./vendor/bin/pest      # 57 tests
 ```
+
+---
+
+# Multi-branch, phase 6 (transfers, stock-takes, purchasing)
+
+## Install
+```bash
+php artisan migrate        # 1 new migration
+php artisan optimize:clear
+```
+New sidebar section **Stock & buying**: Transfers, Stock counts, Purchase orders, Goods received, Returns to supplier, Suppliers.
+
+## Transfers between branches (and from the head-office warehouse)
+- **requested → approved → on the way → received → closed** (or rejected / cancelled before dispatch).
+  A branch asks for stock, the sending branch or head office approves (and can cut quantities), the sender dispatches
+  (driver / vehicle / waybill on the delivery note), the receiver counts what arrived.
+- Quantities can be entered in cartons / packs; stock always moves in single units.
+- Each step happens on the server where it physically happens and the document travels through head office.
+  Each server posts its own stock exactly once:
+  sender – approval reserves the stock (the till can't sell it), dispatch moves it to *in transit*, the receipt clears transit;
+  receiver – dispatch shows it as *incoming*, receiving books it into the store.
+- **Differences** (short / extra) are flagged and must be settled line by line: *write off*, *charge to someone* (with a note),
+  or *more turned up* (the receiver books it in). The transfer closes when every difference is settled;
+  transfers that arrive complete close by themselves.
+- Only head-office catalogue items can move between branches (offer a local product to head office first).
+
+## Stock-takes (blind counts)
+- Pick a location and products (or a category); counters see the products but **not** what the system expects.
+- On submit the system quantity is taken at that moment (sales during the count are not lost). Lines that differ by more
+  than the recount threshold (setting `count_recount_threshold`, default 10 %) are sent back once for a recount.
+- The result becomes a stock-count adjustment that a supervisor approves (the existing approval flow).
+
+## Purchasing
+- **Suppliers** (code, contact, payment terms, bank details).
+- **Purchase orders**: draft → submitted → approved (orders above `po_approval_limit` need *Approve purchase order*;
+  0 = every order) → sent → part received → received / closed. Order by carton or piece; printable / PDF.
+- **Goods received (GRN)**: against an order or without one; supplier invoice number; free goods (e.g. 12 + 1);
+  expiry and batch. Stock goes in, the order's outstanding quantities drop, and the product's cost price is updated
+  (head-office products keep this branch's own cost).
+- **Returns to supplier**: stock out, linked to the delivery if you choose, with a credit-note reference.
+- Suppliers, orders, deliveries and returns sync to head office; head-office suppliers reach every branch.
+
+New permissions: Request / Approve / Dispatch / Receive stock transfer, Allocate stock, View purchasing, Create / Approve
+purchase order, Manage suppliers, Post goods receipt, Return to supplier, Count stock.
+
+## Tests
+```bash
+DB_CONNECTION=mysql DB_DATABASE=vitemart_test ./vendor/bin/pest      # 64 tests
+```

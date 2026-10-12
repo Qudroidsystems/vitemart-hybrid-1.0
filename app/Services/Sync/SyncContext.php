@@ -6,6 +6,17 @@ namespace App\Services\Sync;
 class SyncContext
 {
     protected static int $depth = 0;
+    protected static array $deferred = [];
+
+    /** Run after sync data has been applied – outside the context, so its own changes are tracked normally. */
+    public static function defer(callable $fn): void
+    {
+        if (static::$depth === 0) {
+            $fn();
+            return;
+        }
+        static::$deferred[] = $fn;
+    }
 
     public static function applying(): bool
     {
@@ -19,6 +30,17 @@ class SyncContext
             return \App\Services\AuditLogger::mute($fn);
         } finally {
             static::$depth--;
+            if (static::$depth === 0 && static::$deferred) {
+                $todo = static::$deferred;
+                static::$deferred = [];
+                foreach ($todo as $fn) {
+                    try {
+                        $fn();
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                }
+            }
         }
     }
 }

@@ -58,6 +58,7 @@ class PermissionMeta
     /** Exact-name overrides for permissions the generic rule can't phrase well. */
     protected const OVERRIDES = [
         'dashboard'                    => ['View',    'Open the main administration dashboard.'],
+        'Import products'              => ['Import',  'Upload a product spreadsheet to add or change products in bulk, and add or count stock.'],
         'Manage report emails'         => ['Manage',  'Choose who gets the sales report emails, how often, and send reports for any dates.'],
         'Manage system configuration'  => ['Manage',  'Change server address, head office link, database, email and run maintenance tools. Give to trusted admins only.'],
         'finance dashboard'            => ['View',    'See the finance analytics dashboard.'],

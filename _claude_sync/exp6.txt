@@ -1,0 +1,11 @@
+b5a346d112cc68ba108ea584143b29d9 UPGRADE_NOTES.md
+76ab7d17ff2df79986912971e6b0ee5e app/Http/Controllers/ProductController.php
+6839524ad1cc2efb36010f62e520c9f3 app/Providers/SyncServiceProvider.php
+5284786ab2798343f3bd417ba8bf3645 app/Services/Sync/Feed.php
+b7f40b6c5eb2688f37a392e30a4e910e app/Services/Sync/FeedApplier.php
+f53701b2c58eccd09b5eb0d50b13825c app/Services/Sync/Inbox.php
+b5f0ec8929bb3355e45fc4027840c1e3 app/Services/Sync/Outbox.php
+fb470bebb79cf8e483a66cd4d1516a58 app/Services/Sync/Registry.php
+e96e711e9b2a24dded2871897ed61b16 app/Services/Sync/SyncContext.php
+58c85ddfccdc4678fe57c133e800434c resources/views/layouts/master.blade.php
+61902fb0f05e6c6824713e99a8efbe5e routes/web.php

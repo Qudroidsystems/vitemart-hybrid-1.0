@@ -152,12 +152,16 @@ class Outbox
     public static function backfill(?string $since = null, ?callable $progress = null): int
     {
         $n = 0;
-        $order = ['stock_location', 'cash_register', 'user', 'customer', 'product', 'pos_shift', 'pos_cash_movement', 'order',
-            'order_item', 'order_payment', 'refund', 'stock_adjustment', 'stock_adjustment_item', 'stock'];
+        $order = ['stock_location', 'cash_register', 'user', 'supplier', 'customer', 'product', 'pos_shift', 'pos_cash_movement', 'order',
+            'order_item', 'order_payment', 'refund', 'stock_adjustment', 'stock_adjustment_item', 'goods_receipt', 'goods_receipt_line',
+            'supplier_return', 'supplier_return_line', 'stock_count', 'stock'];
         foreach ($order as $entity) {
             $def = Registry::UP[$entity];
             $q = DB::table($def['table'])->orderBy('id');
-            if ($since && isset(RowCodec::columns($def['table'])['created_at']) && !in_array($entity, ['stock_location', 'cash_register', 'user', 'customer', 'product'], true)) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable($def['table'])) {
+                continue;
+            }
+            if ($since && isset(RowCodec::columns($def['table'])['created_at']) && !in_array($entity, ['stock_location', 'cash_register', 'user', 'supplier', 'customer', 'product'], true)) {
                 $q->where('created_at', '>=', $since);
             }
             if ($entity === 'product') {

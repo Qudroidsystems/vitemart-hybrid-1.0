@@ -36,6 +36,8 @@ class FeedApplier
             'role' => $this->role($p),
             'user' => $this->user($p),
             'customer' => $this->customer($p),
+            'transfer' => $this->transfer($p),
+            'purchase_order' => \App\Services\Inventory\DocumentPayload::importPurchaseOrder($p),
             default => $this->row($entity, $p),
         };
     }
@@ -190,6 +192,15 @@ class FeedApplier
         $ids = collect($p['branch_uids'] ?? [])->map(fn ($x) => RowCodec::idOf(Branch::class, $x))->filter()->all();
         $u->branches()->sync($ids);
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    protected function transfer(array $p): void
+    {
+        [$t, $changed] = \App\Services\Inventory\DocumentPayload::importTransfer($p);
+        if ($changed) {
+            // stock effects (reserve, clear transit, incoming …) are normal local changes: they go back up as usual
+            SyncContext::defer(fn () => app(\App\Services\Inventory\TransferService::class)->syncEffects($t->fresh('lines')));
+        }
     }
 
     protected function customer(array $p): void

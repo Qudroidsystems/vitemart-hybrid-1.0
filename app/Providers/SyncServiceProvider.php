@@ -86,6 +86,7 @@ class SyncServiceProvider extends ServiceProvider
         Event::listen($both(Category::class), $markAlways('category'));
         Event::listen($both(Brand::class), $markAlways('brand'));
         Event::listen($both(Unit::class), $markAlways('unit'));
+        Event::listen($both(\App\Models\Supplier::class), $markAlways('supplier'));
         Event::listen($both(PriceList::class), $mark('price_list', fn ($m) => $m->uid));
         Event::listen($both(PriceListItem::class), $mark('price_list_item', fn ($m) => $m->uid));
         Event::listen('eloquent.saved: ' . FieldPolicy::class, $mark('policies', fn () => 'all'));

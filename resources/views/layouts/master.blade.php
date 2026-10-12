@@ -82,7 +82,7 @@
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
-    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('report-emails.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
+    @if (Route::is('pos.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('report-emails.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*') || Route::is('transfers.*') || Route::is('counts.*') || Route::is('suppliers.*') || Route::is('purchase-orders.*') || Route::is('goods-receipts.*') || Route::is('supplier-returns.*'))
         @include('layouts.pages-assets.css.users-list-css')
     @endif
 
@@ -476,6 +476,36 @@
                                 </div>
                             </li>
                         @endcan
+
+                        @canany(['Request stock transfer', 'Approve stock transfer', 'Dispatch stock transfer', 'Receive stock transfer', 'Allocate stock', 'Count stock', 'Create stock adjustment', 'View purchasing', 'Create purchase order', 'Post goods receipt', 'Manage suppliers'])
+                            <li class="menu-title"><span data-key="t-menu">Stock &amp; buying</span></li>
+                            @canany(['Request stock transfer', 'Approve stock transfer', 'Dispatch stock transfer', 'Receive stock transfer', 'Allocate stock'])
+                                @php
+                                    $__trf = \Illuminate\Support\Facades\Schema::hasTable('stock_transfers') && \App\Services\MultiBranch\Install::branchId()
+                                        ? \App\Models\StockTransfer::where(fn ($q) => $q->where(fn ($w) => $w->where('to_branch_id', \App\Services\MultiBranch\Install::branchId())->where('status', 'dispatched'))
+                                            ->orWhere(fn ($w) => $w->where('from_branch_id', \App\Services\MultiBranch\Install::branchId())->whereIn('status', ['requested', 'approved'])))->count() : 0;
+                                @endphp
+                                <li class="nav-item"><a class="nav-link menu-link" href="{{ route('transfers.index') }}"><i class="ph-truck"></i> <span>Transfers</span>@if ($__trf)<span class="badge bg-warning ms-auto">{{ $__trf }}</span>@endif</a></li>
+                            @endcanany
+                            @canany(['Count stock', 'Create stock adjustment', 'Approve stock adjustment'])
+                                <li class="nav-item"><a class="nav-link menu-link" href="{{ route('counts.index') }}"><i class="ph-list-checks"></i> <span>Stock counts</span></a></li>
+                            @endcanany
+                            @canany(['View purchasing', 'Create purchase order', 'Approve purchase order', 'Post goods receipt', 'Manage suppliers', 'Return to supplier'])
+                                <li class="nav-item">
+                                    <a class="nav-link menu-link" href="#sidebarBuying" data-bs-toggle="collapse" role="button" aria-expanded="{{ request()->routeIs('purchase-orders.*', 'goods-receipts.*', 'supplier-returns.*', 'suppliers.*') ? 'true' : 'false' }}">
+                                        <i class="ph-shopping-bag"></i> <span>Purchasing</span>
+                                    </a>
+                                    <div class="collapse menu-dropdown {{ request()->routeIs('purchase-orders.*', 'goods-receipts.*', 'supplier-returns.*', 'suppliers.*') ? 'show' : '' }}" id="sidebarBuying">
+                                        <ul class="nav nav-sm flex-column">
+                                            <li class="nav-item"><a href="{{ route('purchase-orders.index') }}" class="nav-link">Purchase orders</a></li>
+                                            <li class="nav-item"><a href="{{ route('goods-receipts.index') }}" class="nav-link">Goods received</a></li>
+                                            <li class="nav-item"><a href="{{ route('supplier-returns.index') }}" class="nav-link">Returns to suppliers</a></li>
+                                            <li class="nav-item"><a href="{{ route('suppliers.index') }}" class="nav-link">Suppliers</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            @endcanany
+                        @endcanany
 
                         @canany(['View branches', 'Manage branches', 'View sync status', 'Manage sync'])
                             <li class="menu-title"><span data-key="t-menu">Branches</span></li>
@@ -1368,7 +1398,7 @@
     </div>
 
 
-      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('report-emails.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*'))
+      @if (Route::is('dashboard') || Route::is('products.*') || Route::is('pricing.*') || Route::is('adjustments.*') || Route::is('security.*') || Route::is('system-config.*') || Route::is('report-emails.*') || Route::is('audit.*') || Route::is('pos.transactions*') || Route::is('pos.shifts.*') || Route::is('mb.*') || Route::is('catalogue.*') || Route::is('pos.payments.*') || Route::is('pos.registers.*') || Route::is('transfers.*') || Route::is('counts.*') || Route::is('suppliers.*') || Route::is('purchase-orders.*') || Route::is('goods-receipts.*') || Route::is('supplier-returns.*'))
             @include('layouts.pages-assets.js.common-js')
       @endif
 

@@ -11,7 +11,7 @@
             <p class="text-muted mb-0 mt-1 fs-sm">Every product, its packs, prices and live stock.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap mt-2 mt-sm-0">
-            <a href="{{ route('products.export') }}" class="btn btn-light btn-sm"><i class="bi bi-download me-1"></i>Export</a>
+            <a href="{{ route('products.spreadsheet.index') }}" class="btn btn-light btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Import / Export Excel</a>
             @canany(['Manage price control', 'View price history'])
                 <a href="{{ route('pricing.index') }}" class="btn btn-light btn-sm"><i class="bi bi-tags me-1"></i>Price control</a>
             @endcanany

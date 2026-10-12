@@ -111,16 +111,28 @@ Route::middleware(['auth'])->group(function () {
 
     // Product Management – fixed-path routes MUST come before the resource,
     // otherwise products/{product} swallows /products/search, /products/export …
+    // Products ⇄ Excel (download, edit, upload with preview)
+    Route::prefix('products/spreadsheet')->name('products.spreadsheet.')->controller(\App\Http\Controllers\ProductSpreadsheetController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/download', 'export')->name('export');
+        Route::get('/template', 'template')->name('template');
+        Route::post('/upload', 'upload')->middleware('throttle:20,1')->name('upload');
+        Route::get('/{import}', 'show')->whereNumber('import')->name('show');
+        Route::post('/{import}/step', 'step')->whereNumber('import')->name('step');
+        Route::post('/{import}/apply', 'apply')->whereNumber('import')->name('apply');
+        Route::get('/{import}/problems', 'issues')->whereNumber('import')->name('issues');
+        Route::post('/{import}/cancel', 'cancel')->whereNumber('import')->name('cancel');
+    });
     Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
     Route::get('/products/lookup', [ProductController::class, 'lookup'])->name('products.lookup');
     Route::get('/products/search', [ProductController::class, 'lookup'])->name('products.search');
     Route::get('/products/realtime-stock', [ProductController::class, 'realtimeStock'])->name('products.realtime-stock');
-    Route::get('/products/export', [ProductController::class, 'export'])->name('products.export');
+    Route::get('/products/export', [\App\Http\Controllers\ProductSpreadsheetController::class, 'export'])->name('products.export');
     Route::get('/products/generate-barcode', [ProductController::class, 'generateBarcode'])->name('products.generate-barcode');
     Route::get('/products/generate-sku', [ProductController::class, 'generateSku'])->name('products.generate-sku');
     Route::get('/products/check-barcode', [ProductController::class, 'checkBarcode'])->name('products.check-barcode');
     Route::get('/products/labels', [ProductController::class, 'labels'])->name('products.labels');
-    Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
+    Route::post('/products/import', [\App\Http\Controllers\ProductSpreadsheetController::class, 'upload'])->name('products.import');
     Route::post('/products/bulk-update', [ProductController::class, 'bulkUpdate'])->name('products.bulkUpdate');
     Route::post('/products/bulk-action', [ProductController::class, 'bulkAction'])->name('products.bulk-action');
     Route::post('/products/units', [ProductController::class, 'storeUnit'])->name('products.units.store');
@@ -227,6 +239,56 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/rules', 'policies')->name('policies');
             Route::post('/rules', 'updatePolicies')->name('policies.update');
         });
+    });
+
+    // Stock transfers, counts and purchasing (phase 6)
+    Route::controller(\App\Http\Controllers\Inventory\TransferController::class)->prefix('transfers')->name('transfers.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{transfer}', 'show')->name('show');
+        Route::get('/{transfer}/print', 'print')->name('print');
+        Route::post('/{transfer}/approve', 'approve')->name('approve');
+        Route::post('/{transfer}/reject', 'reject')->name('reject');
+        Route::post('/{transfer}/cancel', 'cancel')->name('cancel');
+        Route::post('/{transfer}/dispatch', 'dispatchTransfer')->name('dispatch');
+        Route::post('/{transfer}/receive', 'receive')->name('receive');
+        Route::post('/{transfer}/lines/{line}/resolve', 'resolve')->name('resolve');
+    });
+    Route::controller(\App\Http\Controllers\Inventory\CountController::class)->prefix('stock-counts')->name('counts.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{count}', 'show')->name('show');
+        Route::post('/{count}/record', 'record')->name('record');
+        Route::post('/{count}/submit', 'submit')->name('submit');
+        Route::post('/{count}/cancel', 'cancel')->name('cancel');
+    });
+    Route::get('/suppliers', [\App\Http\Controllers\Purchasing\SupplierController::class, 'index'])->name('suppliers.index');
+    Route::post('/suppliers', [\App\Http\Controllers\Purchasing\SupplierController::class, 'store'])->name('suppliers.store');
+    Route::put('/suppliers/{supplier}', [\App\Http\Controllers\Purchasing\SupplierController::class, 'update'])->name('suppliers.update');
+    Route::controller(\App\Http\Controllers\Purchasing\PurchaseOrderController::class)->prefix('purchase-orders')->name('purchase-orders.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{purchaseOrder}', 'show')->name('show');
+        Route::get('/{purchaseOrder}/print', 'print')->name('print');
+        Route::post('/{purchaseOrder}/submit', 'submit')->name('submit');
+        Route::post('/{purchaseOrder}/approve', 'approve')->name('approve');
+        Route::post('/{purchaseOrder}/send', 'send')->name('send');
+        Route::post('/{purchaseOrder}/cancel', 'cancel')->name('cancel');
+        Route::post('/{purchaseOrder}/close', 'close')->name('close');
+    });
+    Route::controller(\App\Http\Controllers\Purchasing\GoodsReceiptController::class)->prefix('goods-received')->name('goods-receipts.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{goodsReceipt}', 'show')->name('show');
+    });
+    Route::controller(\App\Http\Controllers\Purchasing\SupplierReturnController::class)->prefix('supplier-returns')->name('supplier-returns.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{supplierReturn}', 'show')->name('show');
     });
 
     // Sync status / controls

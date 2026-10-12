@@ -61,6 +61,11 @@ class Feed
         $add('price_list', DB::table('price_lists')->pluck('uid'));
         $add('price_list_item', DB::table('price_list_items')->pluck('uid'));
         $add('customer', DB::table('customers')->whereNull('deleted_at')->pluck('uid'));
+        if (Schema::hasTable('suppliers')) {
+            $add('supplier', DB::table('suppliers')->pluck('uid'));
+            $add('transfer', DB::table('stock_transfers')->whereNotIn('status', ['closed', 'cancelled', 'rejected'])->pluck('uid'));
+            $add('purchase_order', DB::table('purchase_orders')->whereNotIn('status', ['closed', 'cancelled', 'received'])->pluck('uid'));
+        }
         return $n;
     }
 
@@ -70,7 +75,8 @@ class Feed
         if (!Install::isCentral()) {
             return 0;
         }
-        $order = ['branch', 'unit', 'category', 'brand', 'role', 'user', 'policies', 'setting', 'product', 'price_list', 'price_list_item', 'customer'];
+        $order = ['branch', 'unit', 'category', 'brand', 'role', 'user', 'policies', 'setting', 'product', 'price_list', 'price_list_item', 'customer',
+            'supplier', 'transfer', 'purchase_order'];
         $n = 0;
         RowCodec::flush();
         $dirty = DB::table('sync_dirty')->orderByRaw("FIELD(entity, '" . implode("','", $order) . "')")->orderBy('id')->limit($limit)->get();
@@ -78,12 +84,19 @@ class Feed
             try {
                 [$op, $payload, $branchId] = static::payload($d->entity, $d->entity_uid);
                 DB::transaction(function () use ($d, $op, $payload, $branchId, &$n) {
-                    $newId = DB::table('sync_feed')->insertGetId([
-                        'entity' => $d->entity, 'entity_uid' => $d->entity_uid, 'branch_id' => $branchId, 'op' => $op,
-                        'payload' => $payload === null ? null : json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                        'created_at' => now(),
-                    ]);
-                    DB::table('sync_feed')->where('entity', $d->entity)->where('entity_uid', $d->entity_uid)->where('id', '<', $newId)->delete();
+                    // a document shared by two branches (a transfer) gets one row for each of them
+                    $firstId = null;
+                    foreach (is_array($branchId) ? array_values(array_unique(array_filter($branchId))) : [$branchId] as $bid) {
+                        $id = DB::table('sync_feed')->insertGetId([
+                            'entity' => $d->entity, 'entity_uid' => $d->entity_uid, 'branch_id' => $bid, 'op' => $op,
+                            'payload' => $payload === null ? null : json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                            'created_at' => now(),
+                        ]);
+                        $firstId ??= $id;
+                    }
+                    if ($firstId) {
+                        DB::table('sync_feed')->where('entity', $d->entity)->where('entity_uid', $d->entity_uid)->where('id', '<', $firstId)->delete();
+                    }
                     DB::table('sync_dirty')->where('id', $d->id)->delete();
                     $n++;
                 });
@@ -177,7 +190,15 @@ class Feed
                 $branchId = DB::table('price_lists')->where('id', $row->price_list_id)->value('branch_id');
                 return ['upsert', RowCodec::encode($def, $row, false), $branchId];
 
-            default: // category, brand, unit
+            case 'transfer':
+                $t = \App\Models\StockTransfer::with('lines')->where('uid', $uid)->first();
+                return $t ? ['upsert', \App\Services\Inventory\DocumentPayload::transfer($t), [$t->from_branch_id, $t->to_branch_id]] : ['delete', null, null];
+
+            case 'purchase_order':
+                $po = \App\Models\PurchaseOrder::with('lines')->where('uid', $uid)->first();
+                return $po ? ['upsert', \App\Services\Inventory\DocumentPayload::purchaseOrder($po), $po->branch_id] : ['delete', null, null];
+
+            default: // category, brand, unit, supplier
                 $def = Registry::DOWN[$entity];
                 $row = DB::table($def['table'])->where('uid', $uid)->first();
                 return $row ? ['upsert', RowCodec::encode($def, $row, false), null] : ['delete', null, null];
